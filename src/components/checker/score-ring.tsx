@@ -32,7 +32,7 @@ export function ScoreRing({ score, tone, size = 112, label }: { score: number | 
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className={cn("leading-none font-medium tracking-[-0.03em] tabular-nums", size >= 120 ? "text-[40px]" : "text-[30px]", TONE_TEXT[tone])}>{score === null ? "—" : score}</span>
-        {label && <span className="mt-1.5 text-[11px] text-fg-3">{label}</span>}
+        {label && <span className="mt-1.5 text-[13px] text-fg-3">{label}</span>}
       </div>
     </div>
   );

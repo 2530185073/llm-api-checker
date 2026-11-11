@@ -5,7 +5,7 @@ import { TONE_CLASS, TONE_DOT, type Tone } from "./format";
 /** Status pill: a small dot plus the label, tinted by tone. */
 export function ToneBadge({ tone, children, className }: { tone: Tone; children: React.ReactNode; className?: string }) {
   return (
-    <span className={cn("inline-flex h-[22px] w-fit shrink-0 items-center gap-1.5 rounded-full px-2 text-[11px] font-medium whitespace-nowrap", TONE_CLASS[tone], className)}>
+    <span className={cn("inline-flex h-[26px] w-fit shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium whitespace-nowrap", TONE_CLASS[tone], className)}>
       <span className={cn("size-1.5 rounded-full", TONE_DOT[tone])} />
       {children}
     </span>
@@ -14,7 +14,7 @@ export function ToneBadge({ tone, children, className }: { tone: Tone; children:
 
 /** Small monospace label, used for counts, paths and identifiers. */
 export function MonoTag({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <span className={cn("rounded-md bg-fill-2 px-1.5 py-0.5 font-mono text-[11px] text-fg-3", className)}>{children}</span>;
+  return <span className={cn("rounded-md bg-fill-2 px-1.5 py-0.5 font-mono text-[13px] text-fg-3", className)}>{children}</span>;
 }
 
 /** Grey tray holding a raised white panel. */
@@ -48,8 +48,8 @@ export function SectionCard({
           <Icon className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[15px] font-medium tracking-[-0.01em]">{title}</h3>
-          {description && <p className="mt-0.5 text-[13px] leading-5 text-fg-2">{description}</p>}
+          <h3 className="text-base font-semibold">{title}</h3>
+          {description && <p className="mt-0.5 text-sm leading-6 text-fg-2">{description}</p>}
         </div>
         {action}
       </header>
@@ -61,7 +61,7 @@ export function SectionCard({
 export function SubHeading({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <h4 className="text-xs font-medium text-fg-3">{children}</h4>
+      <h4 className="text-sm font-medium text-fg-2">{children}</h4>
       {aside}
     </div>
   );
@@ -80,7 +80,7 @@ export function Segmented<T extends string>({ value, onChange, items, label }: {
           aria-selected={value === item.value}
           onClick={() => onChange(item.value)}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors",
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
             value === item.value ? "bg-background font-medium text-foreground shadow-raised" : "text-fg-2 hover:text-foreground",
           )}
         >
@@ -98,8 +98,8 @@ export function StatStrip({ items, className }: { items: { label: string; value:
       <dl className="grid grid-cols-2 @xl:grid-cols-4">
         {items.map((s, i) => (
           <div key={s.label} className={cn("min-w-0 px-5 py-4 sm:px-6", i % 2 === 1 && "border-l border-line-1", i >= 2 && "border-t border-line-1 @xl:border-t-0", i >= 1 && "@xl:border-l")}>
-            <dd className={cn("leading-7 font-medium tabular-nums", s.small ? "text-[15px] tracking-[-0.01em]" : "truncate text-[22px] tracking-[-0.02em]")}>{s.value}</dd>
-            <dt className="mt-1 text-xs text-fg-3">{s.label}</dt>
+            <dd className={cn("leading-7 font-medium tabular-nums", s.small ? "text-base" : "truncate text-[22px] tracking-[-0.02em]")}>{s.value}</dd>
+            <dt className="mt-1 text-sm text-fg-3">{s.label}</dt>
           </div>
         ))}
       </dl>
@@ -109,7 +109,7 @@ export function StatStrip({ items, className }: { items: { label: string; value:
 
 export function Count({ tone, label, value }: { tone: Tone; label: string; value: number }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[13px] text-fg-2">
+    <span className="inline-flex items-center gap-1.5 text-sm text-fg-2">
       <span className={cn("size-1.5 rounded-full", TONE_DOT[tone])} />
       {label}
       <span className="font-medium text-foreground tabular-nums">{value}</span>

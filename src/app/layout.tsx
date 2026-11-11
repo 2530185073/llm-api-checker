@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Instrument_Serif, Noto_Serif_SC } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Serif_SC } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
@@ -14,16 +14,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-instrument-serif",
-  weight: "400",
-  subsets: ["latin"],
-});
-
 // Chinese glyphs come in unicode-range slices, so only the characters a page actually uses are downloaded.
 const notoSerifSC = Noto_Serif_SC({
   variable: "--font-noto-serif-sc",
-  weight: ["400", "500"],
+  weight: ["600"],
   subsets: ["latin"],
   preload: false,
   fallback: ["Songti SC", "STSong", "serif"],
@@ -38,15 +32,15 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f7" },
     { media: "(prefers-color-scheme: dark)", color: "#08090a" },
   ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${notoSerifSC.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col bg-background text-foreground">
+    <html lang="zh-CN" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${notoSerifSC.variable} h-full`}>
+      <body className="flex min-h-full flex-col bg-page text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
           <Toaster position="top-center" />

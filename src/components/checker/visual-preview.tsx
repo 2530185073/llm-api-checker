@@ -61,7 +61,7 @@ export function VisualPreview({ artifact, name, compact = false }: { artifact: V
         <Button type="button" variant="ghost" size="sm" onClick={download} disabled={!artifact.html}>
           <Download className="size-3.5" /> 下载 HTML
         </Button>
-        {!compact && <span className="ml-auto rounded-md bg-fill-2 px-1.5 py-0.5 font-mono text-[11px] text-fg-3">隔离沙箱 · 仅加载内联内容</span>}
+        {!compact && <span className="ml-auto rounded-md bg-fill-2 px-1.5 py-0.5 font-mono text-[13px] text-fg-3">隔离沙箱 · 仅加载内联内容</span>}
       </div>
       {view === "preview" ? (
         artifact.html ? (
@@ -74,20 +74,20 @@ export function VisualPreview({ artifact, name, compact = false }: { artifact: V
             className={cn("w-full rounded-xl bg-white ring-1 ring-line-2", compact ? "h-[200px] sm:h-[240px]" : "h-[300px] sm:h-[420px]")}
           />
         ) : (
-          <div className="flex h-40 items-center justify-center rounded-xl bg-fill-1 text-[13px] text-fg-3">未提取到 HTML，无法预览</div>
+          <div className="flex h-40 items-center justify-center rounded-xl bg-fill-1 text-sm text-fg-3">未提取到 HTML，无法预览</div>
         )
       ) : (
-        <pre className="max-h-[420px] overflow-auto rounded-xl bg-fill-1 p-3.5 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap ring-1 ring-line-1">{artifact.html || "（空）"}</pre>
+        <pre className="max-h-[420px] overflow-auto rounded-xl bg-fill-1 p-3.5 font-mono text-sm leading-relaxed break-all whitespace-pre-wrap ring-1 ring-line-1">{artifact.html || "（空）"}</pre>
       )}
       <div className={cn("grid gap-3", compact ? "hidden" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]")}>
         <div className="rounded-xl bg-fill-1 p-3.5">
-          <div className="mb-2 flex items-center justify-between text-xs font-medium">
+          <div className="mb-2 flex items-center justify-between text-sm font-medium">
             <span>自动检查</span>
-            <span className="font-mono text-[11px] text-fg-3 tabular-nums">{artifact.autoScore} / 100</span>
+            <span className="font-mono text-[13px] text-fg-3 tabular-nums">{artifact.autoScore} / 100</span>
           </div>
           <ul className="space-y-1.5">
             {artifact.checks.map((c) => (
-              <li key={c.key} className="flex gap-2 text-xs">
+              <li key={c.key} className="flex gap-2 text-sm">
                 {c.passed ? <CircleCheck className="mt-px size-3.5 shrink-0 text-success" /> : <CircleX className="mt-px size-3.5 shrink-0 text-danger" />}
                 <span className="min-w-0">
                   <span className="font-medium">{c.label}</span>
@@ -98,8 +98,8 @@ export function VisualPreview({ artifact, name, compact = false }: { artifact: V
           </ul>
         </div>
         <div className="rounded-xl bg-fill-1 p-3.5">
-          <div className="mb-2 text-xs font-medium">人工目测要点</div>
-          <ul className="list-disc space-y-1 pl-4 text-xs text-fg-2 marker:text-fg-4">
+          <div className="mb-2 text-sm font-medium">人工目测要点</div>
+          <ul className="list-disc space-y-1 pl-4 text-sm text-fg-2 marker:text-fg-4">
             {REVIEW_CRITERIA.map((c) => (
               <li key={c}>{c}</li>
             ))}

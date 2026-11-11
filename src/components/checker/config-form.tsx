@@ -128,7 +128,7 @@ function Pick({
 }) {
   return (
     <div className="space-y-2">
-      {label && <Label className="text-[13px] text-fg-2">{label}</Label>}
+      {label && <Label className="text-sm text-fg-2">{label}</Label>}
       <Select items={items} value={value} onValueChange={(v) => v && onChange(String(v))} disabled={disabled}>
         <SelectTrigger className="w-full">
           {prefix && <span className="text-fg-3">{prefix}</span>}
@@ -150,10 +150,10 @@ function ToggleRow({ id, label, hint, checked, onChange, disabled }: { id: strin
   return (
     <div className="flex items-start justify-between gap-3 px-3.5 py-2.5">
       <div>
-        <Label htmlFor={id} className="text-sm">
+        <Label htmlFor={id} className="text-[15px]">
           {label}
         </Label>
-        <p className="mt-0.5 text-xs text-fg-3">{hint}</p>
+        <p className="mt-0.5 text-sm text-fg-3">{hint}</p>
       </div>
       <Switch id={id} checked={checked} onCheckedChange={onChange} disabled={disabled} />
     </div>
@@ -164,7 +164,7 @@ function Section({ title, children, defaultOpen = false }: { title: string; chil
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-2xl bg-fill-1 ring-1 ring-line-1">
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-3.5 py-3 text-sm font-medium">
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-3.5 py-3 text-[15px] font-medium">
         {title}
         <ChevronDown className={cn("size-4 text-fg-3 transition-transform duration-200", open && "rotate-180")} />
       </CollapsibleTrigger>
@@ -259,7 +259,7 @@ export function ConfigForm({
       }}
     >
       <div className="space-y-2">
-        <Label htmlFor="baseUrl" className="text-[13px] text-fg-2">
+        <Label htmlFor="baseUrl" className="text-sm text-fg-2">
           Base URL
         </Label>
         <Input
@@ -272,11 +272,11 @@ export function ConfigForm({
           onChange={(e) => set("baseUrl", e.target.value)}
           disabled={running}
         />
-        <p className="text-xs text-fg-3">只写到域名时自动补 /v1；也可以粘贴完整端点地址。</p>
+        <p className="text-sm text-fg-3">只写到域名时自动补 /v1；也可以粘贴完整端点地址。</p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="apiKey" className="text-[13px] text-fg-2">
+        <Label htmlFor="apiKey" className="text-sm text-fg-2">
           API Key
         </Label>
         <div className="relative">
@@ -286,7 +286,7 @@ export function ConfigForm({
             autoComplete="off"
             spellCheck={false}
             placeholder="sk-..."
-            className="pr-10 font-mono text-[13px]"
+            className="pr-10 font-mono text-sm"
             value={form.apiKey}
             onChange={(e) => set("apiKey", e.target.value)}
             disabled={running}
@@ -304,14 +304,14 @@ export function ConfigForm({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="model" className="text-[13px] text-fg-2">
+          <Label htmlFor="model" className="text-sm text-fg-2">
             模型 <span className="text-fg-4">可多选，最多 12 个</span>
           </Label>
           <button
             type="button"
             onClick={fetchModels}
             disabled={loadingModels || running}
-            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-brand transition-colors hover:bg-brand-soft disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm text-brand transition-colors hover:bg-brand-soft disabled:opacity-50"
           >
             {loadingModels ? <Loader2 className="size-3 animate-spin" /> : <ListRestart className="size-3" />}从 /v1/models 获取
           </button>
@@ -340,7 +340,7 @@ export function ConfigForm({
         {form.models.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {form.models.map((m) => (
-              <span key={m} className="inline-flex items-center gap-1 rounded-full bg-primary py-0.5 pr-1 pl-2.5 font-mono text-xs text-primary-foreground">
+              <span key={m} className="inline-flex items-center gap-1 rounded-full bg-primary py-0.5 pr-1 pl-2.5 font-mono text-sm text-primary-foreground">
                 {m}
                 <button type="button" aria-label={`移除 ${m}`} onClick={() => toggleModel(m)} disabled={running} className="rounded-full p-0.5 opacity-70 transition-opacity hover:opacity-100">
                   <X className="size-3" />
@@ -359,7 +359,7 @@ export function ConfigForm({
                   disabled={running}
                   onClick={() => toggleModel(m)}
                   className={cn(
-                    "rounded-full px-2.5 py-0.5 font-mono text-xs transition-colors",
+                    "rounded-full px-2.5 py-0.5 font-mono text-sm transition-colors",
                     form.models.includes(m) ? "bg-primary text-primary-foreground" : "bg-background text-fg-2 shadow-raised hover:text-foreground",
                   )}
                 >
@@ -400,7 +400,7 @@ export function ConfigForm({
           <CaseChecklist catalog={catalog} selected={form.selected} onChange={(next) => set("selected", next)} mode={form.mode} focus={vendors.length ? vendors : ["claude"]} disabled={running} />
           <Pick label="上下文阶梯档位上限" items={LADDER_ITEMS} value={String(form.ladderMax)} onChange={(v) => set("ladderMax", Number(v))} disabled={running} />
           <div className="space-y-2">
-            <Label className="text-[13px] text-fg-2">对照官方端点（可选）</Label>
+            <Label className="text-sm text-fg-2">对照官方端点（可选）</Label>
             <Input placeholder="官方 Base URL" value={form.refBaseUrl} onChange={(e) => set("refBaseUrl", e.target.value)} disabled={running} autoComplete="off" spellCheck={false} />
             <Input
               type="password"
@@ -412,10 +412,10 @@ export function ConfigForm({
               className="font-mono"
             />
             <Input placeholder="对照模型名（默认与被测相同）" value={form.refModel} onChange={(e) => set("refModel", e.target.value)} disabled={running} autoComplete="off" spellCheck={false} />
-            <p className="text-xs text-fg-3">填写后启用「对照官方」类用例（分词计数比对、贪心分歧、吞吐对比等）。</p>
+            <p className="text-sm text-fg-3">填写后启用「对照官方」类用例（分词计数比对、贪心分歧、吞吐对比等）。</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="second" className="text-[13px] text-fg-2">
+            <Label htmlFor="second" className="text-sm text-fg-2">
               第二模型（可选）
             </Label>
             <Input
@@ -436,9 +436,9 @@ export function ConfigForm({
           <Pick label="每题重复次数" items={NUM_ITEMS(10)} value={String(form.repeat)} onChange={(v) => set("repeat", Number(v))} disabled={running || !form.degradation} />
           <Pick label="全局并发" items={NUM_ITEMS(16)} value={String(form.concurrency)} onChange={(v) => set("concurrency", Number(v))} disabled={running} />
         </div>
-        <p className="-mt-2 text-xs text-fg-3">每道问答题与动画题并发执行 N 次，报告给出通过率、平均 / P95 耗时与标准差；所有模型共享全局并发上限。</p>
+        <p className="-mt-2 text-sm text-fg-3">每道问答题与动画题并发执行 N 次，报告给出通过率、平均 / P95 耗时与标准差；所有模型共享全局并发上限。</p>
         <div className="space-y-2">
-          <Label className="text-[13px] text-fg-2">HTML / SVG 动画题</Label>
+          <Label className="text-sm text-fg-2">HTML / SVG 动画题</Label>
           <div className="flex flex-wrap gap-1.5">
             {VISUAL_OPTIONS.map((o) => {
               const active = form.visualPresets.includes(o.key);
@@ -450,7 +450,7 @@ export function ConfigForm({
                   disabled={running || !form.degradation}
                   onClick={() => set("visualPresets", active ? form.visualPresets.filter((k) => k !== o.key) : [...form.visualPresets, o.key])}
                   className={cn(
-                    "rounded-full px-2.5 py-1 text-xs transition-colors disabled:opacity-50",
+                    "rounded-full px-2.5 py-1 text-sm transition-colors disabled:opacity-50",
                     active ? "bg-primary text-primary-foreground" : "bg-background text-fg-2 shadow-raised hover:text-foreground",
                   )}
                 >
@@ -471,12 +471,12 @@ export function ConfigForm({
         <Pick label="降智判定方式" items={JUDGE_ITEMS} value={form.judgeMode} onChange={(v) => set("judgeMode", v as JudgeMode)} disabled={running} />
       </Section>
 
-      <p className="flex gap-2.5 rounded-xl bg-fill-1 p-3 text-xs leading-relaxed text-fg-2">
+      <p className="flex gap-2.5 rounded-xl bg-fill-1 p-3 text-sm leading-relaxed text-fg-2">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" />
         API Key（含对照 Key）只在本次检测期间由服务端转发给对应接口，不写日志、不落盘、检测结束即丢弃。检测会产生真实用量，成分检测的长上下文与重复次数会显著增加请求量。
       </p>
 
-      <div className="sticky bottom-0 z-10 -mx-5 -mb-5 lg:-bottom-6 space-y-2 border-t border-line-1 bg-card/90 px-5 py-4 backdrop-blur-md sm:-mx-6 sm:-mb-6 sm:px-6">
+      <div className="sticky bottom-0 z-10 -mx-5 -mb-5 lg:-bottom-6 space-y-2 border-t border-line-2 bg-card px-5 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
         <div className="flex gap-2">
           {running ? (
             <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onCancel}>
@@ -490,10 +490,10 @@ export function ConfigForm({
           <Button type="button" variant="secondary" size="lg" onClick={onDemo} disabled={running}>
             <FlaskConical className="size-4" />
             <span className="sm:hidden">演示</span>
-            <span className="hidden sm:inline">使用演示端点</span>
+            <span className="hidden sm:inline">演示端点</span>
           </Button>
         </div>
-        {!running && missing.length > 0 && <p className="text-center text-xs text-fg-3">还需填写：{missing.join("、")}</p>}
+        {!running && missing.length > 0 && <p className="text-center text-sm text-fg-3">还需填写：{missing.join("、")}</p>}
       </div>
     </form>
   );

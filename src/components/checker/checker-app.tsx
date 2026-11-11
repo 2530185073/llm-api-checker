@@ -193,11 +193,11 @@ export function CheckerApp() {
         <div className="relative mx-auto w-full max-w-[1680px] px-4 pb-16 sm:px-6">
           <Intro />
 
-          <div className={cn("grid grid-cols-1 gap-5", configOpen && "lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-6")}>
+          <div className={cn("grid grid-cols-1 gap-5", configOpen && "lg:grid-cols-[420px_minmax(0,1fr)] lg:gap-6")}>
             <aside className={cn("h-fit rounded-2xl bg-card shadow-raised lg:sticky lg:top-[4.25rem]", !configOpen && "hidden")}>
               <div className="scroll-thin rounded-2xl p-5 sm:p-6 lg:max-h-[calc(100dvh-5.25rem)] lg:overflow-y-auto">
                 <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-[15px] font-medium tracking-[-0.01em]">检测配置</h2>
+                  <h2 className="text-base font-semibold">检测配置</h2>
                   <MonoTag>POST /api/check</MonoTag>
                 </div>
                 <ConfigForm
@@ -233,7 +233,7 @@ export function CheckerApp() {
                     type="button"
                     onClick={() => setConfigOpen((v) => !v)}
                     aria-expanded={configOpen}
-                    className="ml-auto inline-flex h-7 items-center gap-1.5 rounded-full bg-fill-2 px-3 text-xs text-fg-2 transition-colors hover:bg-fill-3 hover:text-foreground"
+                    className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-full bg-fill-2 px-3.5 text-sm text-fg-2 transition-colors hover:bg-fill-3 hover:text-foreground"
                   >
                     {configOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
                     {configOpen ? "收起配置" : "展开配置"}
@@ -278,7 +278,7 @@ function ModelTab({ selected, onClick, mono, children }: { selected: boolean; on
       aria-selected={selected}
       onClick={onClick}
       className={cn(
-        "h-7 rounded-full px-3 text-xs transition-colors",
+        "h-8 rounded-full px-3.5 text-sm transition-colors",
         mono && "font-mono",
         selected ? "bg-primary text-primary-foreground" : "bg-fill-2 text-fg-2 hover:bg-fill-3 hover:text-foreground",
       )}
@@ -302,7 +302,7 @@ function Logo() {
       <span className="grid size-6 place-items-center rounded-[7px] bg-foreground text-background">
         <ScanSearch className="size-3.5" strokeWidth={2.25} />
       </span>
-      <span className="text-[14px] font-semibold tracking-[-0.01em]">API 鉴真</span>
+      <span className="text-[15px] font-semibold">API 鉴真</span>
     </span>
   );
 }
@@ -324,7 +324,7 @@ function ThemeToggle() {
 
 function SiteHeader() {
   return (
-    <header className="glass sticky top-0 z-40 border-b border-line-1">
+    <header className="sticky top-0 z-40 border-b border-line-2 bg-page">
       <div className="mx-auto flex h-14 w-full max-w-[1680px] items-center justify-between px-4 sm:px-6">
         <Logo />
         <div className="flex items-center gap-1">
@@ -348,17 +348,17 @@ function Intro() {
   return (
     <div className="flex flex-col gap-3 pt-6 pb-5 lg:flex-row lg:items-end lg:justify-between lg:gap-8 lg:pt-7">
       <div className="animate-rise min-w-0">
-        <h1 className="text-[24px] leading-[1.2] tracking-[-0.02em] sm:text-[30px]">
+        <h1 className="text-[26px] leading-[1.2] tracking-[-0.02em] sm:text-[32px]">
           <span className="block font-semibold sm:inline">这个 API 背后，</span>
-          <span className="block font-serif text-fg-3 sm:inline">真是你买的模型吗？</span>
+          <span className="block font-serif font-semibold text-fg-3 sm:inline">真是你买的模型吗？</span>
         </h1>
-        <p className="mt-2 max-w-4xl text-[13px] leading-6 text-fg-2 sm:text-sm">
+        <p className="mt-2 max-w-4xl text-sm leading-6 text-fg-2 sm:text-[15px]">
           填入中转站或第三方接口的 Base URL 与 Key，一次检测给出三份报告：实际在跑的是哪个模型，渠道像不像官方，能力有没有缩水。
         </p>
       </div>
       <ul className="flex shrink-0 flex-wrap gap-1.5" aria-label="覆盖的渠道">
         {VENDOR_STRIP.map((v) => (
-          <li key={v} className="rounded-full bg-fill-2 px-2.5 py-1 text-xs text-fg-2">
+          <li key={v} className="rounded-full bg-fill-2 px-2.5 py-1 text-sm text-fg-2">
             {v}
           </li>
         ))}
@@ -378,8 +378,8 @@ function EmptyState({ caseCount, onDemo }: { caseCount: number; onDemo: () => vo
     <div className="relative overflow-hidden rounded-2xl bg-card shadow-raised">
       <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h2 className="text-[15px] font-medium tracking-[-0.01em]">报告会出现在这里</h2>
-          <p className="mt-1 max-w-xl text-[13px] leading-6 text-fg-2">还没有可用的 Key？内置的模拟上游有 6 家厂商的正常渠道和两个掺假渠道，可以先跑一遍看看。</p>
+          <h2 className="text-base font-semibold">报告会出现在这里</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-fg-2">还没有可用的 Key？内置的模拟上游有 6 家厂商的正常渠道和两个掺假渠道，可以先跑一遍看看。</p>
         </div>
         <Button variant="outline" onClick={onDemo} className="self-start sm:self-auto">
           <FlaskConical className="size-4" /> 填入演示端点
@@ -393,30 +393,30 @@ function EmptyState({ caseCount, onDemo }: { caseCount: number; onDemo: () => vo
                 <span className="grid size-8 place-items-center rounded-lg bg-fill-2 text-fg-2">
                   <Icon className="size-4" />
                 </span>
-                <span className="text-sm font-medium">{title}</span>
+                <span className="text-[15px] font-medium">{title}</span>
               </span>
               <MonoTag>{tag}</MonoTag>
             </div>
-            <p className="mt-3 text-[13px] leading-6 text-fg-2">{text}</p>
+            <p className="mt-3 text-sm leading-6 text-fg-2">{text}</p>
           </li>
         ))}
       </ul>
       <div className="border-t border-line-1 p-5 sm:p-6">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-fg-3">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-fg-3">
           结论长这样 <MonoTag>示例 · 内置演示端点里的掺假渠道</MonoTag>
         </div>
         <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-7">
           <ScoreRing score={22} tone="bad" size={96} label="综合评分" />
           <div className="min-w-0 flex-1">
-            <div className="font-serif text-[28px] leading-none tracking-[-0.02em] text-danger">高风险</div>
-            <p className="mt-2.5 max-w-3xl text-[13px] leading-6 text-fg-2">
-              声称 <span className="font-mono text-[12px] text-foreground">claude-opus-4.8</span>，指纹最像 <span className="font-mono text-[12px] text-danger">deepseek-v4-flash</span>（置信度
+            <div className="font-serif text-[28px] leading-none font-semibold text-danger">高风险</div>
+            <p className="mt-2.5 max-w-3xl text-sm leading-6 text-fg-2">
+              声称 <span className="font-mono text-sm text-foreground">claude-opus-4.8</span>，指纹最像 <span className="font-mono text-sm text-danger">deepseek-v4-flash</span>（置信度
               &gt;99.9%）；渠道成分 36 分，检出模型被替换、协议转换层等关键问题；智力得分 31 分。
             </p>
           </div>
         </div>
       </div>
-      <p className="flex gap-2.5 border-t border-line-1 bg-fill-1 px-5 py-3.5 text-xs leading-5 text-fg-2 sm:px-6">
+      <p className="flex gap-2.5 border-t border-line-1 bg-fill-1 px-5 py-3.5 text-sm leading-6 text-fg-2 sm:px-6">
         <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-success" />
         检测会向被测接口发出真实请求并产生用量：指纹与降智约 27 次，渠道成分按清单约 150–400 次，可在用例清单里按需取消。
       </p>
@@ -428,14 +428,14 @@ function SiteFooter() {
   return (
     <footer className="border-t border-line-1">
       <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-5 sm:px-6 md:flex-row md:items-center md:justify-between md:gap-8">
-        <p className="max-w-4xl text-xs leading-5 text-fg-3">
+        <p className="max-w-4xl text-sm leading-6 text-fg-3">
           API Key 只放在发往本服务的请求体里，由服务端在本次检测期间转发给对应接口，不写日志、不落盘、不回传；进度流与报告中出现的 Key 会被替换为 [REDACTED]。
         </p>
         <a
           href={REPO}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full bg-fill-2 px-3 py-1.5 text-xs text-fg-2 transition-colors hover:bg-fill-3 hover:text-foreground md:self-auto"
+          className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full bg-fill-2 px-3 py-1.5 text-sm text-fg-2 transition-colors hover:bg-fill-3 hover:text-foreground md:self-auto"
         >
           <GithubMark className="size-3.5" /> 源码 <ArrowUpRight className="size-3.5" />
         </a>

@@ -31,11 +31,11 @@ export function ReportView({ report }: { report: CheckReport }) {
           <ScoreRing score={report.overall.score} tone={tone} size={132} label="综合评分" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-fg-3">检测结论</span>
+              <span className="text-sm text-fg-3">检测结论</span>
               <MonoTag className="max-w-full truncate">{report.target.model}</MonoTag>
             </div>
-            <h2 className={cn("mt-2 font-serif text-[34px] leading-[1.1] tracking-[-0.02em] sm:text-[40px]", TONE_TEXT[tone])}>{OVERALL_WORD[tone]}</h2>
-            <p className="mt-3 max-w-4xl text-sm leading-6 text-fg-2">{report.overall.summary}</p>
+            <h2 className={cn("mt-2 font-serif text-[34px] leading-[1.1] font-semibold sm:text-[40px]", TONE_TEXT[tone])}>{OVERALL_WORD[tone]}</h2>
+            <p className="mt-3 max-w-4xl text-[15px] leading-6 text-fg-2">{report.overall.summary}</p>
             <div className="mt-4 flex flex-wrap gap-1.5">
               <MonoTag>{report.target.host}</MonoTag>
               <MonoTag>
@@ -76,7 +76,7 @@ export function ReportView({ report }: { report: CheckReport }) {
           {report.degradation && <DegradationCard dg={report.degradation} />}
         </>
       )}
-      <p className="px-1 text-xs leading-5 text-fg-3">
+      <p className="px-1 text-sm leading-6 text-fg-3">
         综合评分 = 降智得分 × 指纹系数（一致 1.0、未收录 0.9、同家族 0.75、不一致 0.4），启用成分检测时再与成分得分按 6 : 4 加权（检出关键问题时成分得分按不超过 40 计）。
       </p>
     </div>
@@ -97,10 +97,10 @@ function EvidenceList({ items }: { items: Evidence[] }) {
           <SignalIcon signal={e.signal} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-              <span className="text-sm font-medium">{e.label}</span>
-              <span className="text-[13px] break-all text-fg-2 sm:text-right">{e.value}</span>
+              <span className="text-[15px] font-medium">{e.label}</span>
+              <span className="text-sm break-all text-fg-2 sm:text-right">{e.value}</span>
             </div>
-            {e.detail && <p className="mt-1 text-xs leading-5 text-fg-3">{e.detail}</p>}
+            {e.detail && <p className="mt-1 text-sm leading-6 text-fg-3">{e.detail}</p>}
           </div>
         </li>
       ))}
@@ -110,13 +110,13 @@ function EvidenceList({ items }: { items: Evidence[] }) {
 
 function ModelNode({ caption, model, sub, tone }: { caption: string; model: string; sub?: React.ReactNode; tone?: Tone }) {
   return (
-    <div className="relative min-w-0 rounded-xl bg-background/90 px-4 py-3.5 shadow-float backdrop-blur">
-      <div className="flex items-center gap-1.5 text-xs text-fg-3">
+    <div className="relative min-w-0 rounded-xl bg-background px-4 py-3.5 shadow-float">
+      <div className="flex items-center gap-1.5 text-sm text-fg-3">
         {tone && <span className={cn("size-1.5 rounded-full", TONE_DOT[tone])} />}
         {caption}
       </div>
-      <div className={cn("mt-1.5 font-mono text-[15px] font-medium break-all", tone && TONE_TEXT[tone])}>{model}</div>
-      {sub && <div className="mt-1 text-xs text-fg-3">{sub}</div>}
+      <div className={cn("mt-1.5 font-mono text-base font-medium break-all", tone && TONE_TEXT[tone])}>{model}</div>
+      {sub && <div className="mt-1 text-sm text-fg-3">{sub}</div>}
     </div>
   );
 }
@@ -142,22 +142,22 @@ function FingerprintCard({ fp }: { fp: FingerprintReport }) {
             sub={fp.likely ? `${fp.likely.family} · 置信度 ${fp.confidence !== null ? pct(fp.confidence) : "未校准（有效回答不足 3 条）"}` : undefined}
           />
         </div>
-        <p className="relative mt-3.5 text-[13px] leading-6 text-fg-2">{fp.claimSummary}</p>
+        <p className="relative mt-3.5 text-sm leading-6 text-fg-2">{fp.claimSummary}</p>
       </div>
 
-      {fp.error && !fp.likely && <p className="rounded-xl bg-warning-soft p-3 text-sm text-warning">{fp.error}</p>}
+      {fp.error && !fp.likely && <p className="rounded-xl bg-warning-soft p-3 text-[15px] text-warning">{fp.error}</p>}
 
       {top.length > 0 && (
         <div className="space-y-3">
           <SubHeading aside={<MonoTag>{fp.decision === "scored" ? "参考库已校准" : "参考库未校准"}</MonoTag>}>候选排名</SubHeading>
           <ul className="space-y-3">
             {top.map((c, i) => (
-              <li key={c.model} className="grid grid-cols-[1.25rem_minmax(0,1fr)_4.5rem] items-center gap-2 text-sm">
-                <span className="font-mono text-[11px] text-fg-4 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+              <li key={c.model} className="grid grid-cols-[1.25rem_minmax(0,1fr)_4.5rem] items-center gap-2 text-[15px]">
+                <span className="font-mono text-[13px] text-fg-4 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                 <div className="min-w-0">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className={cn("truncate font-mono text-[13px]", i === 0 ? "font-medium" : "text-fg-2")}>{c.model}</span>
-                    <span className="shrink-0 text-xs text-fg-3">{c.family}</span>
+                    <span className={cn("truncate font-mono text-sm", i === 0 ? "font-medium" : "text-fg-2")}>{c.model}</span>
+                    <span className="shrink-0 text-sm text-fg-3">{c.family}</span>
                   </div>
                   <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-fill-3">
                     <div
@@ -166,7 +166,7 @@ function FingerprintCard({ fp }: { fp: FingerprintReport }) {
                     />
                   </div>
                 </div>
-                <span className={cn("text-right text-xs tabular-nums", i === 0 ? "font-medium" : "text-fg-2")}>{c.probability === null ? `分数 ${c.score?.toFixed(2)}` : pct(c.probability)}</span>
+                <span className={cn("text-right text-sm tabular-nums", i === 0 ? "font-medium" : "text-fg-2")}>{c.probability === null ? `分数 ${c.score?.toFixed(2)}` : pct(c.probability)}</span>
               </li>
             ))}
           </ul>
@@ -179,13 +179,13 @@ function FingerprintCard({ fp }: { fp: FingerprintReport }) {
       </div>
 
       <Collapsible>
-        <CollapsibleTrigger className="group flex items-center gap-1 rounded-full py-1 pr-3 pl-2 text-[13px] text-fg-2 transition-colors hover:bg-fill-2 hover:text-foreground">
+        <CollapsibleTrigger className="group flex items-center gap-1 rounded-full py-1 pr-3 pl-2 text-sm text-fg-2 transition-colors hover:bg-fill-2 hover:text-foreground">
           <ChevronDown className="size-4 transition-transform duration-200 group-data-[panel-open]:rotate-180" /> 指纹样本明细
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-3">
           <div className="overflow-x-auto rounded-xl ring-1 ring-line-1">
-            <table className="w-full min-w-[520px] text-[13px]">
-              <thead className="bg-fill-1 text-xs text-fg-3">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead className="bg-fill-1 text-sm text-fg-3">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">样本</th>
                   <th className="px-3 py-2 text-right font-medium">要求 / 解析</th>
@@ -198,7 +198,7 @@ function FingerprintCard({ fp }: { fp: FingerprintReport }) {
               <tbody className="divide-y divide-line-1">
                 {fp.samples.map((s) => (
                   <tr key={s.index}>
-                    <td className="px-3 py-2 font-mono text-xs text-fg-3">#{s.index + 1}</td>
+                    <td className="px-3 py-2 font-mono text-sm text-fg-3">#{s.index + 1}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {s.expected} / {s.parsed}
                     </td>
@@ -207,7 +207,7 @@ function FingerprintCard({ fp }: { fp: FingerprintReport }) {
                     <td className="px-3 py-2 text-right tabular-nums">
                       {tokens(s.usage.input)} / {tokens(s.usage.output)}
                     </td>
-                    <td className="max-w-48 truncate px-3 py-2 text-xs">{s.ok ? <span className="text-success">成功</span> : <span className="text-danger">{s.error}</span>}</td>
+                    <td className="max-w-48 truncate px-3 py-2 text-sm">{s.ok ? <span className="text-success">成功</span> : <span className="text-danger">{s.error}</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -238,7 +238,7 @@ function DegradationCard({ dg }: { dg: DegradationReport }) {
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
         <ScoreRing score={dg.score} tone={verdict.tone} size={104} label="智力得分" />
         <div className="space-y-3">
-          <p className="text-sm leading-6">{dg.verdictText}</p>
+          <p className="text-[15px] leading-6">{dg.verdictText}</p>
           <div className="flex flex-wrap gap-x-5 gap-y-1.5">
             <Count tone="good" label="通过" value={dg.passed} />
             <Count tone="bad" label="未通过" value={dg.failed} />
@@ -271,7 +271,7 @@ function DegradationCard({ dg }: { dg: DegradationReport }) {
       {visual.length > 0 && (
         <div className="space-y-3">
           <SubHeading aside={<MonoTag>{visual.length} 题</MonoTag>}>HTML / SVG 动画题</SubHeading>
-          <p className="-mt-1 text-xs leading-5 text-fg-3">自动检查结构、完整性、动画与题意关键词（≥ 75 分记为通过），画面质量请直接目测预览。</p>
+          <p className="-mt-1 text-sm leading-6 text-fg-3">自动检查结构、完整性、动画与题意关键词（≥ 75 分记为通过），画面质量请直接目测预览。</p>
           {visual.map((t) => (
             <VisualTestCard key={t.id} t={t} />
           ))}
@@ -298,10 +298,10 @@ function VisualTestCard({ t }: { t: DegradationTestResult }) {
     <div className="space-y-3 rounded-2xl p-4 ring-1 ring-line-1">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <ToneBadge tone={label.tone}>{label.text}</ToneBadge>
-        <span className="text-sm font-medium">{t.name}</span>
+        <span className="text-[15px] font-medium">{t.name}</span>
         <MonoTag>权重 {t.weight}</MonoTag>
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-3 tabular-nums">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-fg-3 tabular-nums">
         <Meta>首段输出 {ms(t.ttftMs)}</Meta>
         <Meta warn={!t.latencyPassed && t.status !== "error"}>
           总耗时 {ms(t.durationMs)}（阈值 {ms(t.maxDurationMs)}）
@@ -314,19 +314,19 @@ function VisualTestCard({ t }: { t: DegradationTestResult }) {
         {t.finishReason && <Meta>结束原因 {t.finishReason}</Meta>}
       </div>
       {t.stats && t.stats.runs > 1 && <RunStatsLine t={t} />}
-      {t.error && <p className="text-xs text-danger">{t.error}</p>}
+      {t.error && <p className="text-sm text-danger">{t.error}</p>}
       {t.runs && t.runs.length > 1 ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {t.runs.map((r) => (
             <div key={r.index} className="space-y-2 rounded-xl bg-fill-1 p-2.5">
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-sm">
                 <span className="font-medium">第 {r.index + 1} 次</span>
                 <span className={cn("tabular-nums", r.status === "normal" ? "text-success" : r.status === "error" ? "text-fg-3" : "text-danger")}>
                   {TEST_LABEL[r.status].text}
                   {r.artifact ? ` · ${r.artifact.autoScore} 分` : ""} · {ms(r.durationMs)}
                 </span>
               </div>
-              {r.artifact ? <VisualPreview artifact={r.artifact} name={`${t.name} #${r.index + 1}`} compact /> : <p className="text-xs text-danger">{r.error ?? "没有输出"}</p>}
+              {r.artifact ? <VisualPreview artifact={r.artifact} name={`${t.name} #${r.index + 1}`} compact /> : <p className="text-sm text-danger">{r.error ?? "没有输出"}</p>}
             </div>
           ))}
         </div>
@@ -340,7 +340,7 @@ function VisualTestCard({ t }: { t: DegradationTestResult }) {
 function RunStatsLine({ t }: { t: DegradationTestResult }) {
   const s = t.stats!;
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-fill-2 px-2.5 py-1.5 text-xs text-fg-2 tabular-nums">
+    <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-fill-2 px-2.5 py-1.5 text-sm text-fg-2 tabular-nums">
       <span>
         通过率 <b className="font-medium text-foreground">{s.passRate === null ? "—" : `${Math.round(s.passRate * 100)}%`}</b>（{s.passed}/{s.graded}，共 {s.runs} 次）
       </span>
@@ -361,28 +361,28 @@ function TestRow({ t }: { t: DegradationTestResult }) {
         <CollapsibleTrigger className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-fill-1">
           <span className={cn("size-2 shrink-0 rounded-full", TONE_DOT[label.tone])} aria-hidden />
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">{t.name}</div>
-            <div className="mt-0.5 text-xs text-fg-3">
+            <div className="truncate text-[15px] font-medium">{t.name}</div>
+            <div className="mt-0.5 text-sm text-fg-3">
               {t.category} · 权重 {t.weight}
               {t.stats && t.stats.runs > 1 ? ` · 通过 ${t.stats.passed}/${t.stats.graded}` : ""}
             </div>
           </div>
-          <div className="hidden text-right text-xs text-fg-3 tabular-nums sm:block">
+          <div className="hidden text-right text-sm text-fg-3 tabular-nums sm:block">
             <div>TTFT {ms(t.ttftMs)}</div>
             <div className={cn(!t.latencyPassed && t.status !== "error" && "text-warning")}>总 {ms(t.durationMs)}</div>
           </div>
-          <span className={cn("w-14 shrink-0 text-right text-xs font-medium", TONE_TEXT[label.tone])}>{label.text}</span>
+          <span className={cn("w-14 shrink-0 text-right text-sm font-medium", TONE_TEXT[label.tone])}>{label.text}</span>
           <ChevronDown className={cn("size-4 shrink-0 text-fg-4 transition-transform duration-200", open && "rotate-180")} />
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="space-y-2.5 px-3.5 pb-3.5 text-sm">
+          <div className="space-y-2.5 px-3.5 pb-3.5 text-[15px]">
             {t.stats && t.stats.runs > 1 && <RunStatsLine t={t} />}
             {t.runs && t.runs.length > 1 && (
-              <ul className="space-y-1 text-xs">
+              <ul className="space-y-1 text-sm">
                 {t.runs.map((r) => (
                   <li key={r.index} className="flex gap-2 rounded-lg bg-fill-1 px-2.5 py-1.5">
                     <span className="w-10 shrink-0 font-mono text-fg-4">#{r.index + 1}</span>
-                    <span className={cn("w-14 shrink-0", r.status === "normal" ? "text-success" : r.status === "error" ? "text-fg-3" : "text-danger")}>{TEST_LABEL[r.status].text}</span>
+                    <span className={cn("w-16 shrink-0", r.status === "normal" ? "text-success" : r.status === "error" ? "text-fg-3" : "text-danger")}>{TEST_LABEL[r.status].text}</span>
                     <span className="w-16 shrink-0 text-fg-3 tabular-nums">{ms(r.durationMs)}</span>
                     <span className="min-w-0 truncate font-mono">{r.error ?? r.output}</span>
                   </li>
@@ -391,18 +391,18 @@ function TestRow({ t }: { t: DegradationTestResult }) {
             )}
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="rounded-xl bg-fill-1 p-3">
-                <div className="text-xs text-fg-3">标准答案</div>
-                <div className="mt-1 font-mono text-[13px] break-all">{t.expected}</div>
+                <div className="text-sm text-fg-3">标准答案</div>
+                <div className="mt-1 font-mono text-sm break-all">{t.expected}</div>
               </div>
               <div className="rounded-xl bg-fill-1 p-3">
-                <div className="flex items-center gap-1.5 text-xs text-fg-3">
+                <div className="flex items-center gap-1.5 text-sm text-fg-3">
                   模型回答
                   {t.status !== "error" && <span className={t.answerPassed ? "text-success" : "text-danger"}>{t.answerPassed ? "✓" : "✗"}</span>}
                 </div>
-                <div className="mt-1 max-h-40 overflow-auto font-mono text-[13px] break-all whitespace-pre-wrap">{t.error ? <span className="text-danger">{t.error}</span> : t.output || "（空）"}</div>
+                <div className="mt-1 max-h-40 overflow-auto font-mono text-sm break-all whitespace-pre-wrap">{t.error ? <span className="text-danger">{t.error}</span> : t.output || "（空）"}</div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-3">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-fg-3">
               <span>TTFT {ms(t.ttftMs)}</span>
               <span>
                 总耗时 {ms(t.durationMs)}（阈值 {ms(t.maxDurationMs)} {t.latencyPassed ? "✓" : "✗"}）

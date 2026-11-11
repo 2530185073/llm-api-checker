@@ -57,22 +57,22 @@ function CaseRow({ r }: { r: CaseResult }) {
         <StatusIcon s={r.status} />
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-medium">{r.title}</span>
-            <span className="text-[11px] text-fg-3">{r.weight > 0 ? `权重 ${r.weight}` : "不计分"}</span>
+            <span className="text-[15px] font-medium">{r.title}</span>
+            <span className="text-[13px] text-fg-3">{r.weight > 0 ? `权重 ${r.weight}` : "不计分"}</span>
             {r.tags.includes("critical") && (
-              <Badge variant="destructive" className="text-[10px]">
+              <Badge variant="destructive" className="text-[13px]">
                 关键
               </Badge>
             )}
             {r.flags?.map((f) => (
-              <Badge key={f} variant="destructive" className="text-[10px]">
+              <Badge key={f} variant="destructive" className="text-[13px]">
                 {FLAG_LABEL[f]}
               </Badge>
             ))}
           </span>
-          <span className="mt-0.5 block text-xs leading-5 text-fg-2">{r.summary}</span>
+          <span className="mt-0.5 block text-sm leading-6 text-fg-2">{r.summary}</span>
         </span>
-        <span className="hidden shrink-0 text-right text-[11px] leading-4 text-fg-3 tabular-nums sm:block">
+        <span className="hidden shrink-0 text-right text-[13px] leading-4 text-fg-3 tabular-nums sm:block">
           {r.requests} 次请求
           <br />
           {ms(r.durationMs)}
@@ -80,7 +80,7 @@ function CaseRow({ r }: { r: CaseResult }) {
         {hasMore ? <ChevronDown className={cn("mt-0.5 size-4 shrink-0 text-fg-4 transition-transform duration-200", open && "rotate-180")} /> : <span className="size-4 shrink-0" aria-hidden />}
       </button>
       {open && (
-        <ul className="mx-3.5 mb-3 space-y-0.5 rounded-xl bg-fill-1 p-3 font-mono text-[11px] leading-relaxed text-fg-2">
+        <ul className="mx-3.5 mb-3 space-y-0.5 rounded-xl bg-fill-1 p-3 font-mono text-[13px] leading-relaxed text-fg-2">
           {r.details!.map((d, i) => (
             <li key={i} className="break-all whitespace-pre-wrap">
               {d}
@@ -128,7 +128,7 @@ export function CompositionCard({ c }: { c: CompositionReport }) {
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
         <ScoreRing score={c.score} tone={tone} size={104} label="成分得分" />
         <div className="min-w-0 space-y-3">
-          <p className="text-sm leading-6">{c.verdictText}</p>
+          <p className="text-[15px] leading-6">{c.verdictText}</p>
           <div className="flex flex-wrap gap-x-5 gap-y-1.5">
             <Count tone="good" label="通过" value={c.passed} />
             <Count tone="warn" label="警告" value={c.warned} />
@@ -157,7 +157,7 @@ export function CompositionCard({ c }: { c: CompositionReport }) {
             { value: "all", label: `全部用例 ${c.cases.length}` },
           ]}
         />
-        {sections.length === 0 && <p className="rounded-xl bg-fill-1 px-3.5 py-6 text-center text-[13px] text-fg-2">没有警告或失败的用例。</p>}
+        {sections.length === 0 && <p className="rounded-xl bg-fill-1 px-3.5 py-6 text-center text-sm text-fg-2">没有警告或失败的用例。</p>}
         {sections.map((s) => (
           <div key={s.name} className="space-y-2">
             <SubHeading aside={<MonoTag>{s.items.length}</MonoTag>}>{s.name}</SubHeading>

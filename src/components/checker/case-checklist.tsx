@@ -65,7 +65,7 @@ export function CaseChecklist({
         <span className="inline-flex items-center gap-1.5">
           <ListChecks className="size-4" /> 用例清单
         </span>
-        <span className="truncate font-mono text-[11px] font-normal text-fg-3">{catalog ? summary || "选择模型后显示" : "加载中…"}</span>
+        <span className="truncate font-mono text-[13px] font-normal text-fg-3">{catalog ? summary || "选择模型后显示" : "加载中…"}</span>
       </DialogTrigger>
       <DialogContent className="flex max-h-[88vh] flex-col gap-3 sm:max-w-3xl">
         <DialogHeader>
@@ -79,7 +79,7 @@ export function CaseChecklist({
               type="button"
               onClick={() => setVendor(v)}
               className={cn(
-                "rounded-full px-3 py-1 text-xs transition-colors",
+                "rounded-full px-3 py-1 text-sm transition-colors",
                 vendor === v ? "bg-primary text-primary-foreground" : focus.includes(v) ? "bg-fill-3 text-foreground hover:bg-line-2" : "bg-fill-1 text-fg-3 hover:text-foreground",
               )}
             >
@@ -100,7 +100,7 @@ export function CaseChecklist({
           <Button type="button" size="sm" variant="secondary" onClick={() => setFor([])}>
             全不选
           </Button>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             已选 {sel.size} / {list.length}
           </span>
         </div>
@@ -111,10 +111,10 @@ export function CaseChecklist({
             return (
               <div key={s.name} className="mb-4">
                 <div className="sticky top-0 z-10 flex items-center justify-between bg-popover py-2">
-                  <h4 className="text-xs font-medium text-fg-3">{s.name}</h4>
+                  <h4 className="text-sm font-medium text-fg-3">{s.name}</h4>
                   <button
                     type="button"
-                    className="rounded-full px-2 py-0.5 text-xs text-brand transition-colors hover:bg-brand-soft"
+                    className="rounded-full px-2 py-0.5 text-sm text-brand transition-colors hover:bg-brand-soft"
                     onClick={() => setFor(all ? [...sel].filter((x) => !ids.includes(x)) : [...new Set([...sel, ...ids])])}
                   >
                     {all ? "本组全不选" : "本组全选"}
@@ -127,25 +127,25 @@ export function CaseChecklist({
                         <Checkbox checked={sel.has(c.id)} onCheckedChange={() => toggle(c.id)} className="mt-0.5" />
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-mono text-[11px] text-fg-4 tabular-nums">{String(list.indexOf(c) + 1 || i + 1).padStart(2, "0")}</span>
-                            <span className="text-sm font-medium">{c.title}</span>
-                            <Badge variant="outline" className="text-[10px]">
+                            <span className="font-mono text-[13px] text-fg-4 tabular-nums">{String(list.indexOf(c) + 1 || i + 1).padStart(2, "0")}</span>
+                            <span className="text-[15px] font-medium">{c.title}</span>
+                            <Badge variant="outline" className="text-[13px]">
                               {weightLabel(c, mode, vendor)}
                             </Badge>
                             {c.tags
                               .filter((t) => t !== "ref" && t !== "unscored")
                               .map((t) => (
-                                <Badge key={t} variant={t === "critical" ? "destructive" : "secondary"} className="text-[10px]">
+                                <Badge key={t} variant={t === "critical" ? "destructive" : "secondary"} className="text-[13px]">
                                   {TAG_TEXT[t]}
                                 </Badge>
                               ))}
                             {c.needsRef && (
-                              <Badge variant="secondary" className="text-[10px]">
+                              <Badge variant="secondary" className="text-[13px]">
                                 需对照端点
                               </Badge>
                             )}
                           </span>
-                          <span className="mt-0.5 block text-xs leading-relaxed text-fg-2">{c.desc}</span>
+                          <span className="mt-0.5 block text-sm leading-relaxed text-fg-2">{c.desc}</span>
                         </span>
                       </label>
                     </li>

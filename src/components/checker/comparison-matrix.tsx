@@ -21,14 +21,14 @@ export function ComparisonMatrix({ report, onPick }: { report: MultiReport; onPi
     <tr key={label} className="group/row">
       <th
         className={cn(
-          "sticky left-0 z-10 min-w-[6.5rem] bg-card py-2.5 pr-3 pl-5 text-left text-xs whitespace-nowrap transition-colors group-hover/row:bg-surface-1 sm:pl-6",
+          "sticky left-0 z-10 min-w-[6.5rem] bg-card py-2.5 pr-3 pl-5 text-left text-sm whitespace-nowrap transition-colors group-hover/row:bg-surface-1 sm:pl-6",
           strong ? "font-medium text-foreground" : "font-normal text-fg-2",
         )}
       >
         {label}
       </th>
       {reps.map((r) => (
-        <td key={r.target.model} className="px-3 py-2.5 text-center text-sm tabular-nums transition-colors group-hover/row:bg-fill-1">
+        <td key={r.target.model} className="px-3 py-2.5 text-center text-[15px] tabular-nums transition-colors group-hover/row:bg-fill-1">
           {cell(r)}
         </td>
       ))}
@@ -51,13 +51,13 @@ export function ComparisonMatrix({ report, onPick }: { report: MultiReport; onPi
           <table className="w-full min-w-[560px] border-collapse">
             <thead>
               <tr className="border-y border-line-1">
-                <th className="sticky left-0 z-10 bg-surface-1 py-2.5 pr-3 pl-5 text-left text-xs font-medium text-fg-3 sm:pl-6">指标</th>
+                <th className="sticky left-0 z-10 bg-surface-1 py-2.5 pr-3 pl-5 text-left text-sm font-medium text-fg-3 sm:pl-6">指标</th>
                 {reps.map((r) => (
                   <th key={r.target.model} className="bg-surface-1 px-3 py-2.5 text-center">
                     <button
                       type="button"
                       onClick={() => onPick(r.target.model)}
-                      className="inline-flex items-center gap-1 rounded-full bg-background py-1 pr-2 pl-2.5 font-mono text-xs font-medium whitespace-nowrap shadow-raised transition-colors hover:bg-fill-2"
+                      className="inline-flex items-center gap-1 rounded-full bg-background py-1 pr-2 pl-2.5 font-mono text-sm font-medium whitespace-nowrap shadow-raised transition-colors hover:bg-fill-2"
                     >
                       {r.target.model}
                       <ArrowUpRight className="size-3 text-fg-3" />
@@ -79,7 +79,7 @@ export function ComparisonMatrix({ report, onPick }: { report: MultiReport; onPi
               )}
               {row("最可能的模型", (r) =>
                 r.fingerprint?.likely ? (
-                  <span className="font-mono text-xs">
+                  <span className="font-mono text-sm">
                     {r.fingerprint.likely.model}
                     {r.fingerprint.confidence !== null ? <span className="block text-fg-3">{pct(r.fingerprint.confidence)}</span> : null}
                   </span>
@@ -92,30 +92,30 @@ export function ComparisonMatrix({ report, onPick }: { report: MultiReport; onPi
                 r.composition?.flags.length ? (
                   <span className="flex flex-wrap justify-center gap-1">
                     {r.composition.flags.slice(0, 4).map((f) => (
-                      <Badge key={f} variant="destructive" className="text-[10px]">
+                      <Badge key={f} variant="destructive" className="text-[13px]">
                         {FLAG_LABEL[f]}
                       </Badge>
                     ))}
                   </span>
                 ) : r.composition ? (
-                  <span className="text-xs text-success">无</span>
+                  <span className="text-sm text-success">无</span>
                 ) : (
                   "—"
                 ),
               )}
               {row("智力得分", (r) => score(r.degradation?.score, r.degradation?.score == null ? "muted" : r.degradation.score >= 85 ? "good" : r.degradation.score >= 60 ? "warn" : "bad"), true)}
               {row("平均首字", (r) => (
-                <span className="text-xs text-fg-2">{ms(r.degradation?.stats.avgTtftMs)}</span>
+                <span className="text-sm text-fg-2">{ms(r.degradation?.stats.avgTtftMs)}</span>
               ))}
               {row("平均耗时", (r) => (
-                <span className="text-xs text-fg-2">{ms(r.degradation?.stats.avgDurationMs)}</span>
+                <span className="text-sm text-fg-2">{ms(r.degradation?.stats.avgDurationMs)}</span>
               ))}
               {row("请求数", (r) => (
-                <span className="text-xs text-fg-2">{r.totals.requests}</span>
+                <span className="text-sm text-fg-2">{r.totals.requests}</span>
               ))}
               {tests.length > 0 && (
                 <tr>
-                  <th colSpan={reps.length + 1} className="bg-surface-1 py-2 pr-3 pl-5 text-left text-xs font-medium text-fg-3 sm:pl-6">
+                  <th colSpan={reps.length + 1} className="bg-surface-1 py-2 pr-3 pl-5 text-left text-sm font-medium text-fg-3 sm:pl-6">
                     <span className="sticky left-5 sm:left-6">逐题通过率 · 平均耗时 / P95</span>
                   </th>
                 </tr>
@@ -126,7 +126,7 @@ export function ComparisonMatrix({ report, onPick }: { report: MultiReport; onPi
                   if (!x) return "—";
                   const rate = x.stats?.passRate ?? (x.status === "normal" ? 1 : x.status === "error" ? null : 0);
                   return (
-                    <span className="text-xs">
+                    <span className="text-sm">
                       <span className={cn("font-medium", TONE_TEXT[cellTone(rate)])}>{rate === null ? "失败" : `${Math.round(rate * 100)}%`}</span>
                       <span className="block text-fg-3">
                         {ms(x.stats?.meanMs ?? x.durationMs)}
