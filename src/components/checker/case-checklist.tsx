@@ -61,11 +61,11 @@ export function CaseChecklist({
 
   return (
     <Dialog>
-      <DialogTrigger render={<Button type="button" variant="outline" size="sm" className="w-full justify-between" disabled={disabled || !catalog} />}>
+      <DialogTrigger render={<Button type="button" variant="outline" className="h-10 w-full justify-between rounded-xl px-3" disabled={disabled || !catalog} />}>
         <span className="inline-flex items-center gap-1.5">
           <ListChecks className="size-4" /> 用例清单
         </span>
-        <span className="truncate text-xs text-muted-foreground">{catalog ? summary || "选择模型后显示" : "加载中…"}</span>
+        <span className="truncate font-mono text-[11px] font-normal text-fg-3">{catalog ? summary || "选择模型后显示" : "加载中…"}</span>
       </DialogTrigger>
       <DialogContent className="flex max-h-[88vh] flex-col gap-3 sm:max-w-3xl">
         <DialogHeader>
@@ -79,11 +79,14 @@ export function CaseChecklist({
               type="button"
               onClick={() => setVendor(v)}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs transition-colors",
-                vendor === v ? "border-primary bg-primary text-primary-foreground" : focus.includes(v) ? "border-primary/40 text-foreground" : "text-muted-foreground",
+                "rounded-full px-3 py-1 text-xs transition-colors",
+                vendor === v ? "bg-primary text-primary-foreground" : focus.includes(v) ? "bg-fill-3 text-foreground hover:bg-line-2" : "bg-fill-1 text-fg-3 hover:text-foreground",
               )}
             >
-              {catalog?.labels[v]?.split("（")[0] ?? v} <span className="tabular-nums opacity-80">{current(v).length}/{catalog?.cases[v]?.length ?? 0}</span>
+              {catalog?.labels[v]?.split("（")[0] ?? v}{" "}
+              <span className="tabular-nums opacity-80">
+                {current(v).length}/{catalog?.cases[v]?.length ?? 0}
+              </span>
             </button>
           ))}
         </div>
@@ -107,20 +110,24 @@ export function CaseChecklist({
             const all = ids.every((id) => sel.has(id));
             return (
               <div key={s.name} className="mb-4">
-                <div className="sticky top-0 z-10 flex items-center justify-between bg-popover py-1.5">
-                  <h4 className="text-sm font-medium">{s.name}</h4>
-                  <button type="button" className="text-xs text-primary hover:underline" onClick={() => setFor(all ? [...sel].filter((x) => !ids.includes(x)) : [...new Set([...sel, ...ids])])}>
+                <div className="sticky top-0 z-10 flex items-center justify-between bg-popover py-2">
+                  <h4 className="text-xs font-medium text-fg-3">{s.name}</h4>
+                  <button
+                    type="button"
+                    className="rounded-full px-2 py-0.5 text-xs text-brand transition-colors hover:bg-brand-soft"
+                    onClick={() => setFor(all ? [...sel].filter((x) => !ids.includes(x)) : [...new Set([...sel, ...ids])])}
+                  >
                     {all ? "本组全不选" : "本组全选"}
                   </button>
                 </div>
                 <ul className="space-y-1">
                   {s.items.map((c, i) => (
                     <li key={c.id}>
-                      <label className="flex cursor-pointer gap-2.5 rounded-md p-2 hover:bg-muted/50">
+                      <label className="flex cursor-pointer gap-2.5 rounded-xl p-2.5 transition-colors hover:bg-fill-1">
                         <Checkbox checked={sel.has(c.id)} onCheckedChange={() => toggle(c.id)} className="mt-0.5" />
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-xs tabular-nums text-muted-foreground">{list.indexOf(c) + 1 || i + 1}.</span>
+                            <span className="font-mono text-[11px] text-fg-4 tabular-nums">{String(list.indexOf(c) + 1 || i + 1).padStart(2, "0")}</span>
                             <span className="text-sm font-medium">{c.title}</span>
                             <Badge variant="outline" className="text-[10px]">
                               {weightLabel(c, mode, vendor)}
@@ -138,7 +145,7 @@ export function CaseChecklist({
                               </Badge>
                             )}
                           </span>
-                          <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{c.desc}</span>
+                          <span className="mt-0.5 block text-xs leading-relaxed text-fg-2">{c.desc}</span>
                         </span>
                       </label>
                     </li>

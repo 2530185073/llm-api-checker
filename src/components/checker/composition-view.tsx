@@ -3,10 +3,10 @@
 import { ChevronDown, CircleAlert, CircleCheck, CircleMinus, CircleSlash, Layers, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { CaseResult, CompositionReport, Flag } from "@/lib/composition/types";
 import { cn } from "@/lib/utils";
 import { ms } from "./format";
+import { Count, LIST_BOX, MonoTag, Segmented, SectionCard, SubHeading, ToneBadge } from "./parts";
 import { ScoreRing } from "./score-ring";
 
 export const FLAG_LABEL: Record<Flag, string> = {
@@ -33,15 +33,14 @@ const PLATFORM_LABEL: Record<string, string> = {
   unknown: "未知",
 };
 
-export const compositionTone = (c: CompositionReport | null) =>
-  !c || c.score === null ? "muted" : c.verdict === "official" ? "good" : c.verdict === "suspect" ? "warn" : "bad";
+export const compositionTone = (c: CompositionReport | null) => (!c || c.score === null ? "muted" : c.verdict === "official" ? "good" : c.verdict === "suspect" ? "warn" : "bad");
 
 function StatusIcon({ s }: { s: CaseResult["status"] }) {
-  if (s === "pass") return <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" />;
-  if (s === "warn") return <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-500" />;
-  if (s === "fail") return <CircleAlert className="mt-0.5 size-4 shrink-0 text-red-500" />;
-  if (s === "skip") return <CircleSlash className="mt-0.5 size-4 shrink-0 text-muted-foreground/60" />;
-  return <CircleMinus className="mt-0.5 size-4 shrink-0 text-muted-foreground" />;
+  if (s === "pass") return <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" />;
+  if (s === "warn") return <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />;
+  if (s === "fail") return <CircleAlert className="mt-0.5 size-4 shrink-0 text-danger" />;
+  if (s === "skip") return <CircleSlash className="mt-0.5 size-4 shrink-0 text-fg-4" />;
+  return <CircleMinus className="mt-0.5 size-4 shrink-0 text-fg-4" />;
 }
 
 function CaseRow({ r }: { r: CaseResult }) {
@@ -49,34 +48,39 @@ function CaseRow({ r }: { r: CaseResult }) {
   const hasMore = !!r.details?.length;
   return (
     <li>
-      <button type="button" className={cn("flex w-full gap-2.5 px-3 py-2 text-left", hasMore && "hover:bg-muted/30")} onClick={() => hasMore && setOpen((v) => !v)}>
+      <button
+        type="button"
+        aria-expanded={hasMore ? open : undefined}
+        className={cn("flex w-full gap-3 px-3.5 py-3 text-left transition-colors", hasMore ? "hover:bg-fill-1" : "cursor-default")}
+        onClick={() => hasMore && setOpen((v) => !v)}
+      >
         <StatusIcon s={r.status} />
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-medium">{r.title}</span>
-            <span className="text-[11px] text-muted-foreground">{r.weight > 0 ? `权重 ${r.weight}` : "不计分"}</span>
+            <span className="text-[11px] text-fg-3">{r.weight > 0 ? `权重 ${r.weight}` : "不计分"}</span>
             {r.tags.includes("critical") && (
               <Badge variant="destructive" className="text-[10px]">
                 关键
               </Badge>
             )}
             {r.flags?.map((f) => (
-              <Badge key={f} variant="outline" className="border-red-500/30 text-[10px] text-red-600 dark:text-red-400">
+              <Badge key={f} variant="destructive" className="text-[10px]">
                 {FLAG_LABEL[f]}
               </Badge>
             ))}
           </span>
-          <span className="block text-xs text-muted-foreground">{r.summary}</span>
+          <span className="mt-0.5 block text-xs leading-5 text-fg-2">{r.summary}</span>
         </span>
-        <span className="hidden shrink-0 text-right text-[11px] tabular-nums text-muted-foreground sm:block">
+        <span className="hidden shrink-0 text-right text-[11px] leading-4 text-fg-3 tabular-nums sm:block">
           {r.requests} 次请求
           <br />
           {ms(r.durationMs)}
         </span>
-        {hasMore && <ChevronDown className={cn("mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />}
+        {hasMore ? <ChevronDown className={cn("mt-0.5 size-4 shrink-0 text-fg-4 transition-transform duration-200", open && "rotate-180")} /> : <span className="size-4 shrink-0" aria-hidden />}
       </button>
       {open && (
-        <ul className="mx-3 mb-2 space-y-0.5 rounded-md bg-muted/40 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+        <ul className="mx-3.5 mb-3 space-y-0.5 rounded-xl bg-fill-1 p-3 font-mono text-[11px] leading-relaxed text-fg-2">
           {r.details!.map((d, i) => (
             <li key={i} className="break-all whitespace-pre-wrap">
               {d}
@@ -88,8 +92,11 @@ function CaseRow({ r }: { r: CaseResult }) {
   );
 }
 
+const VERDICT_WORD: Record<CompositionReport["verdict"], string> = { official: "一致", suspect: "存疑", fake: "不符", unknown: "无法判断" };
+
 export function CompositionCard({ c }: { c: CompositionReport }) {
-  const [filter, setFilter] = useState<"all" | "issues">("issues");
+  const issues = c.failed + c.warned;
+  const [filter, setFilter] = useState<"all" | "issues">(issues > 0 ? "issues" : "all");
   const tone = compositionTone(c);
   const sections = useMemo(() => {
     const out: { name: string; items: CaseResult[] }[] = [];
@@ -102,12 +109,11 @@ export function CompositionCard({ c }: { c: CompositionReport }) {
     return out;
   }, [c.cases, filter]);
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Layers className="size-5 text-primary" /> 渠道成分报告 · {VENDOR_NAME[c.vendor]}
-        </CardTitle>
-        <CardDescription>
+    <SectionCard
+      icon={Layers}
+      title={`渠道成分报告 · ${VENDOR_NAME[c.vendor]}`}
+      description={
+        <>
           {!["glm", "kimi", "deepseek"].includes(c.vendor)
             ? "按官方 API 的协议、计费与参数行为逐项核对。"
             : c.mode === "official"
@@ -115,50 +121,54 @@ export function CompositionCard({ c }: { c: CompositionReport }) {
               : "官方等价：只看模型、上下文、思考、计费、精度与性能是否与官方一致。"}
           {c.platform ? ` 平台判定：${PLATFORM_LABEL[c.platform] ?? c.platform}。` : ""}
           {c.backend ? ` 后端判定：${c.backend}。` : ""}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <ScoreRing score={c.score} tone={tone} size={96} label="成分得分" />
-          <div className="space-y-2">
-            <p className="text-sm font-medium">{c.verdictText}</p>
-            <div className="flex flex-wrap gap-3 text-sm">
-              <span className="text-emerald-600">通过 {c.passed}</span>
-              <span className="text-amber-600">警告 {c.warned}</span>
-              <span className="text-red-500">失败 {c.failed}</span>
-              <span className="text-muted-foreground">跳过 {c.skipped}</span>
-              <span className="text-muted-foreground">精度证据 {c.precisionPoints} 分</span>
-            </div>
-            {c.flags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {c.flags.map((f) => (
-                  <Badge key={f} variant="destructive">
-                    {FLAG_LABEL[f]}
-                  </Badge>
-                ))}
-              </div>
-            )}
+        </>
+      }
+      action={<ToneBadge tone={tone}>{VERDICT_WORD[c.verdict]}</ToneBadge>}
+    >
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+        <ScoreRing score={c.score} tone={tone} size={104} label="成分得分" />
+        <div className="min-w-0 space-y-3">
+          <p className="text-sm leading-6">{c.verdictText}</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+            <Count tone="good" label="通过" value={c.passed} />
+            <Count tone="warn" label="警告" value={c.warned} />
+            <Count tone="bad" label="失败" value={c.failed} />
+            <Count tone="muted" label="跳过" value={c.skipped} />
+            <Count tone="muted" label="精度证据分" value={c.precisionPoints} />
           </div>
+          {c.flags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {c.flags.map((f) => (
+                <Badge key={f} variant="destructive">
+                  {FLAG_LABEL[f]}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="flex gap-1 rounded-md border p-0.5 text-xs w-fit">
-          {(["issues", "all"] as const).map((k) => (
-            <button key={k} type="button" onClick={() => setFilter(k)} className={cn("rounded px-2.5 py-1", filter === k ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
-              {k === "issues" ? `只看问题（${c.failed + c.warned}）` : `全部用例（${c.cases.length}）`}
-            </button>
-          ))}
-        </div>
-        {sections.length === 0 && <p className="text-sm text-muted-foreground">没有警告或失败的用例。</p>}
+      </div>
+      <div className="space-y-4">
+        <Segmented
+          label="用例筛选"
+          value={filter}
+          onChange={setFilter}
+          items={[
+            { value: "issues", label: `只看问题 ${issues}` },
+            { value: "all", label: `全部用例 ${c.cases.length}` },
+          ]}
+        />
+        {sections.length === 0 && <p className="rounded-xl bg-fill-1 px-3.5 py-6 text-center text-[13px] text-fg-2">没有警告或失败的用例。</p>}
         {sections.map((s) => (
-          <div key={s.name} className="space-y-1">
-            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{s.name}</h4>
-            <ul className="divide-y rounded-lg border">
+          <div key={s.name} className="space-y-2">
+            <SubHeading aside={<MonoTag>{s.items.length}</MonoTag>}>{s.name}</SubHeading>
+            <ul className={LIST_BOX}>
               {s.items.map((r) => (
                 <CaseRow key={r.id} r={r} />
               ))}
             </ul>
           </div>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </SectionCard>
   );
 }

@@ -30,24 +30,31 @@ export const TEST_LABEL: Record<TestStatus, { text: string; tone: Tone }> = {
 export type Tone = "good" | "warn" | "bad" | "muted";
 
 export const TONE_CLASS: Record<Tone, string> = {
-  good: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400",
-  warn: "bg-amber-500/10 text-amber-700 border-amber-500/25 dark:text-amber-400",
-  bad: "bg-red-500/10 text-red-700 border-red-500/20 dark:text-red-400",
-  muted: "bg-muted text-muted-foreground border-border",
+  good: "bg-success-soft text-success border-transparent",
+  warn: "bg-warning-soft text-warning border-transparent",
+  bad: "bg-danger-soft text-danger border-transparent",
+  muted: "bg-fill-3 text-fg-2 border-transparent",
 };
 
 export const TONE_TEXT: Record<Tone, string> = {
-  good: "text-emerald-600 dark:text-emerald-400",
-  warn: "text-amber-600 dark:text-amber-400",
-  bad: "text-red-600 dark:text-red-400",
+  good: "text-success",
+  warn: "text-warning",
+  bad: "text-danger",
   muted: "text-muted-foreground",
 };
 
 export const TONE_STROKE: Record<Tone, string> = {
-  good: "stroke-emerald-500",
-  warn: "stroke-amber-500",
-  bad: "stroke-red-500",
-  muted: "stroke-muted-foreground/40",
+  good: "stroke-success",
+  warn: "stroke-warning",
+  bad: "stroke-danger",
+  muted: "stroke-fg-4",
+};
+
+export const TONE_DOT: Record<Tone, string> = {
+  good: "bg-success",
+  warn: "bg-warning",
+  bad: "bg-danger",
+  muted: "bg-fg-4",
 };
 
 export const ms = (value: number | null | undefined) => {
