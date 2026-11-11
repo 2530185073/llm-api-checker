@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ArrowUpRight, Brain, FlaskConical, Fingerprint, KeyRound, Layers, Moon, ScanSearch, Server, ShieldCheck, Sun, Table2, Waypoints } from "lucide-react";
+import { ArrowUpRight, Brain, FlaskConical, Fingerprint, Layers, Moon, PanelLeftClose, PanelLeftOpen, ScanSearch, ShieldCheck, Sun, Table2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ import type { CaseCatalog } from "./case-checklist";
 import { ComparisonMatrix } from "./comparison-matrix";
 import { ConfigForm, INITIAL_FORM, type FormState } from "./config-form";
 import { ProgressPanel, type StepState } from "./progress-panel";
-import { MonoTag, ToneBadge, Tray } from "./parts";
+import { MonoTag } from "./parts";
 import { ReportView } from "./report-view";
 import { ScoreRing } from "./score-ring";
 
@@ -35,9 +35,9 @@ export function CheckerApp() {
   const [error, setError] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState(0);
   const [now, setNow] = useState(0);
+  const [configOpen, setConfigOpen] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
-  const checkRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     fetch("/api/cases")
@@ -59,8 +59,6 @@ export function CheckerApp() {
   };
   const expected = form.models.reduce((s, m) => s + perModel(m), 0);
   const caseCount = catalog ? Object.values(catalog.cases).reduce((s, list) => s + list.length, 0) : 301;
-
-  const scrollToCheck = () => checkRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   function fillDemo() {
     setForm((prev) => ({
@@ -100,6 +98,8 @@ export function CheckerApp() {
       if (event.error) toast.error(`${event.model}：${event.error}`);
     } else if (event.type === "result") {
       setReport(event.report);
+      // On a phone the form sits above the report; fold it away so the report comes first.
+      if (event.report.reports.length && window.matchMedia("(max-width: 1023px)").matches) setConfigOpen(false);
       setActive(event.report.reports.length > 1 ? null : (event.report.reports[0]?.target.model ?? null));
     } else if (event.type === "error") setError(event.message);
   }
@@ -178,29 +178,27 @@ export function CheckerApp() {
 
   const reports = report?.reports ?? [];
   const shown = reports.find((r) => r.target.model === active);
+  const multi = reports.length > 1;
+  const pick = (model: string | null) => {
+    setActive(model);
+    setTimeout(reveal, 50);
+  };
 
   return (
     <div className="relative flex flex-1 flex-col">
       <SiteHeader />
 
-      <main className="flex-1">
-        <Hero
-          onStart={scrollToCheck}
-          onDemo={() => {
-            fillDemo();
-            scrollToCheck();
-          }}
-        />
+      <main className="relative flex-1">
+        <div aria-hidden className="dot-grid pointer-events-none absolute inset-x-0 top-0 h-44 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        <div className="relative mx-auto w-full max-w-[1680px] px-4 pb-16 sm:px-6">
+          <Intro />
 
-        <section id="check" ref={checkRef} className="mx-auto w-full max-w-7xl scroll-mt-16 px-4 pb-24 sm:px-6 lg:px-8">
-          <SectionHeading lead="填好接口，" tail="一次看清" note="Base URL 与 Key 由本服务转发到被测接口，检测期间实时显示进度；多个模型会在结果里并排对比，再逐个下钻。" />
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-8">
-            <div className="h-fit rounded-[28px] bg-surface-1 p-1.5 ring-1 ring-line-1 lg:sticky lg:top-[4.5rem]">
-              <div className="scroll-thin rounded-[22px] bg-card p-5 shadow-raised sm:p-6 lg:max-h-[calc(100dvh-6.25rem)] lg:overflow-y-auto">
-                <div className="mb-5 flex items-center justify-between">
-                  <h3 className="text-[15px] font-medium tracking-[-0.01em]">检测配置</h3>
-                  <span className="rounded-md bg-fill-2 px-1.5 py-0.5 font-mono text-[11px] text-fg-3">POST /api/check</span>
+          <div className={cn("grid grid-cols-1 gap-5", configOpen && "lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-6")}>
+            <aside className={cn("h-fit rounded-2xl bg-card shadow-raised lg:sticky lg:top-[4.25rem]", !configOpen && "hidden")}>
+              <div className="scroll-thin rounded-2xl p-5 sm:p-6 lg:max-h-[calc(100dvh-5.25rem)] lg:overflow-y-auto">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-[15px] font-medium tracking-[-0.01em]">检测配置</h2>
+                  <MonoTag>POST /api/check</MonoTag>
                 </div>
                 <ConfigForm
                   form={form}
@@ -214,13 +212,38 @@ export function CheckerApp() {
                   catalog={catalog}
                 />
               </div>
-            </div>
+            </aside>
 
-            <div ref={resultRef} className="min-w-0 scroll-mt-20 space-y-5">
+            <div ref={resultRef} className="min-w-0 scroll-mt-[4.25rem] space-y-4">
+              {(report || running || !configOpen) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {report && multi && (
+                    <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="报告视图">
+                      <ModelTab selected={active === null} onClick={() => pick(null)}>
+                        对比总览
+                      </ModelTab>
+                      {reports.map((r) => (
+                        <ModelTab key={r.target.model} selected={active === r.target.model} onClick={() => pick(r.target.model)} mono>
+                          {r.target.model}
+                        </ModelTab>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setConfigOpen((v) => !v)}
+                    aria-expanded={configOpen}
+                    className="ml-auto inline-flex h-7 items-center gap-1.5 rounded-full bg-fill-2 px-3 text-xs text-fg-2 transition-colors hover:bg-fill-3 hover:text-foreground"
+                  >
+                    {configOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
+                    {configOpen ? "收起配置" : "展开配置"}
+                  </button>
+                </div>
+              )}
               {error && (
                 <Alert variant="destructive">
                   <AlertTitle>检测未完成</AlertTitle>
-                  <AlertDescription className="whitespace-pre-wrap break-all">{error}</AlertDescription>
+                  <AlertDescription className="break-all whitespace-pre-wrap">{error}</AlertDescription>
                 </Alert>
               )}
               {running && (
@@ -228,19 +251,7 @@ export function CheckerApp() {
                   <ProgressPanel steps={steps} expected={expected} elapsed={now - startedAt} stage={stage} models={form.models} doneModels={doneModels} />
                 </div>
               )}
-              {report && reports.length > 1 && <ComparisonMatrix report={report} onPick={(m) => setActive(m)} />}
-              {report && reports.length > 1 && (
-                <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="模型详细报告">
-                  <ModelTab selected={active === null} onClick={() => setActive(null)}>
-                    只看对比
-                  </ModelTab>
-                  {reports.map((r) => (
-                    <ModelTab key={r.target.model} selected={active === r.target.model} onClick={() => setActive(r.target.model)} mono>
-                      {r.target.model}
-                    </ModelTab>
-                  ))}
-                </div>
-              )}
+              {report && multi && active === null && <ComparisonMatrix report={report} onPick={pick} />}
               {shown && <ReportView key={shown.target.model} report={shown} />}
               {report && !reports.length && (
                 <Alert variant="destructive">
@@ -251,9 +262,7 @@ export function CheckerApp() {
               {!running && !report && !error && <EmptyState caseCount={caseCount} onDemo={fillDemo} />}
             </div>
           </div>
-        </section>
-
-        <HowItWorks caseCount={caseCount} />
+        </div>
       </main>
 
       <SiteFooter />
@@ -269,7 +278,7 @@ function ModelTab({ selected, onClick, mono, children }: { selected: boolean; on
       aria-selected={selected}
       onClick={onClick}
       className={cn(
-        "rounded-full px-3 py-1 text-xs transition-colors",
+        "h-7 rounded-full px-3 text-xs transition-colors",
         mono && "font-mono",
         selected ? "bg-primary text-primary-foreground" : "bg-fill-2 text-fg-2 hover:bg-fill-3 hover:text-foreground",
       )}
@@ -314,24 +323,10 @@ function ThemeToggle() {
 }
 
 function SiteHeader() {
-  const links = [
-    { href: "#check", label: "检测" },
-    { href: "#how", label: "原理" },
-    { href: "#privacy", label: "隐私" },
-  ];
   return (
     <header className="glass sticky top-0 z-40 border-b border-line-1">
-      <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <a href="#" aria-label="回到顶部">
-          <Logo />
-        </a>
-        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex">
-          {links.map((l) => (
-            <a key={l.href} href={l.href} className="rounded-full px-3 py-1.5 text-[13px] text-fg-2 transition-colors hover:bg-fill-2 hover:text-foreground">
-              {l.label}
-            </a>
-          ))}
-        </nav>
+      <div className="mx-auto flex h-14 w-full max-w-[1680px] items-center justify-between px-4 sm:px-6">
+        <Logo />
         <div className="flex items-center gap-1">
           <a
             href={REPO}
@@ -349,122 +344,25 @@ function SiteHeader() {
   );
 }
 
-function Hero({ onStart, onDemo }: { onStart: () => void; onDemo: () => void }) {
+function Intro() {
   return (
-    <section className="relative overflow-hidden">
-      <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,black_30%,transparent_95%)]" />
-      <div className="relative mx-auto w-full max-w-7xl px-4 pt-16 pb-20 sm:px-6 sm:pt-24 sm:pb-28 lg:px-8">
-        <div className="grid items-center gap-12 xl:grid-cols-[minmax(0,1fr)_minmax(0,430px)]">
-          <div>
-            <div className="animate-rise">
-              <span className="inline-flex items-center gap-2 rounded-full bg-background p-1 pr-3 text-xs shadow-raised">
-                <span className="rounded-full bg-fill-3 px-2 py-0.5 font-medium">开源</span>
-                <span className="text-fg-2">可自托管 · Key 不写日志、不落盘</span>
-              </span>
-            </div>
-            <h1 className="mt-7 text-[40px] leading-[1.08] tracking-[-0.025em] sm:text-[60px] xl:text-[72px]" style={{ animationDelay: "60ms" }}>
-              <span className="animate-rise block font-semibold">这个 API 背后，</span>
-              <span className="animate-rise block font-serif text-fg-3" style={{ animationDelay: "120ms" }}>
-                真是你买的模型吗？
-              </span>
-            </h1>
-            <p className="animate-rise mt-7 max-w-xl text-[15px] leading-7 text-fg-2 sm:text-base" style={{ animationDelay: "180ms" }}>
-              填入中转站或第三方接口的 Base URL 与 Key，一次检测给出三份报告：实际在跑的是哪个模型，渠道像不像官方，能力有没有缩水。
-            </p>
-            <div className="animate-rise mt-9 flex flex-wrap items-center gap-2.5" style={{ animationDelay: "240ms" }}>
-              <Button size="lg" onClick={onStart}>
-                开始检测 <ArrowRight className="size-4" />
-              </Button>
-              <Button size="lg" variant="secondary" onClick={onDemo}>
-                <FlaskConical className="size-4" /> 用演示端点试试
-              </Button>
-              <a href={REPO} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-1.5 px-3 text-sm text-fg-2 transition-colors hover:text-foreground">
-                <GithubMark className="size-4" /> GitHub
-              </a>
-            </div>
-          </div>
-          <HeroSample onDemo={onDemo} />
-        </div>
-
-        <div className="animate-rise mt-16 flex flex-wrap items-center gap-x-8 gap-y-3 sm:mt-20" style={{ animationDelay: "300ms" }}>
-          <span className="text-xs text-fg-3">覆盖的渠道</span>
-          {VENDOR_STRIP.map((v) => (
-            <span key={v} className="text-[15px] font-medium tracking-[-0.01em] text-fg-3 transition-colors hover:text-foreground">
-              {v}
-            </span>
-          ))}
-          <span className="font-mono text-[11px] text-fg-4">Chat · Responses · Messages · generateContent</span>
-        </div>
+    <div className="flex flex-col gap-3 pt-6 pb-5 lg:flex-row lg:items-end lg:justify-between lg:gap-8 lg:pt-7">
+      <div className="animate-rise min-w-0">
+        <h1 className="text-[24px] leading-[1.2] tracking-[-0.02em] sm:text-[30px]">
+          <span className="block font-semibold sm:inline">这个 API 背后，</span>
+          <span className="block font-serif text-fg-3 sm:inline">真是你买的模型吗？</span>
+        </h1>
+        <p className="mt-2 max-w-4xl text-[13px] leading-6 text-fg-2 sm:text-sm">
+          填入中转站或第三方接口的 Base URL 与 Key，一次检测给出三份报告：实际在跑的是哪个模型，渠道像不像官方，能力有没有缩水。
+        </p>
       </div>
-    </section>
-  );
-}
-
-/** A static example of what a report looks like, taken from the built-in demo upstream. */
-function HeroSample({ onDemo }: { onDemo: () => void }) {
-  const rows = [
-    { label: "指纹判定", value: "不一致", tone: "text-danger" },
-    { label: "成分得分", value: "36", tone: "text-danger" },
-    { label: "智力得分", value: "31", tone: "text-danger" },
-  ];
-  return (
-    <div className="animate-rise hidden xl:block" style={{ animationDelay: "260ms" }}>
-      <Tray className="shadow-float">
-        <div className="flex items-center justify-between px-5 pt-4">
-          <span className="flex items-center gap-2 text-xs text-fg-3">
-            示例报告 <MonoTag>内置演示端点</MonoTag>
-          </span>
-          <ToneBadge tone="bad">高风险</ToneBadge>
-        </div>
-        <div className="flex items-center gap-5 px-5 pt-4 pb-5">
-          <ScoreRing score={22} tone="bad" size={104} label="综合评分" />
-          <div className="min-w-0 flex-1 space-y-3">
-            <div>
-              <div className="text-[11px] text-fg-3">声称的模型</div>
-              <div className="mt-0.5 truncate font-mono text-[13px] font-medium">claude-opus-4.8</div>
-            </div>
-            <div className="h-px bg-line-1" />
-            <div>
-              <div className="text-[11px] text-fg-3">最可能的实际模型</div>
-              <div className="mt-0.5 truncate font-mono text-[13px] font-medium text-danger">deepseek-v4-flash</div>
-              <div className="mt-0.5 text-[11px] text-fg-3">置信度 &gt;99.9%</div>
-            </div>
-          </div>
-        </div>
-        <dl className="grid grid-cols-3 border-t border-line-1">
-          {rows.map((r, i) => (
-            <div key={r.label} className={cn("px-5 py-3.5", i > 0 && "border-l border-line-1")}>
-              <dd className={cn("text-[18px] leading-6 font-medium tracking-[-0.02em] tabular-nums", r.tone)}>{r.value}</dd>
-              <dt className="mt-0.5 text-[11px] text-fg-3">{r.label}</dt>
-            </div>
-          ))}
-        </dl>
-        <div className="flex items-center justify-between gap-3 border-t border-line-1 bg-fill-1 px-5 py-3">
-          <span className="text-xs leading-5 text-fg-2">演示端点里一个掺假渠道的检测结果</span>
-          <button
-            type="button"
-            onClick={onDemo}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-background px-3 py-1 text-xs font-medium shadow-raised transition-colors hover:bg-fill-2"
-          >
-            自己跑一遍 <ArrowRight className="size-3" />
-          </button>
-        </div>
-      </Tray>
-    </div>
-  );
-}
-
-function SectionHeading({ lead, tail, note, eyebrow }: { lead: string; tail: string; note?: string; eyebrow?: string }) {
-  return (
-    <div className="mb-8 flex flex-col gap-4 sm:mb-10 md:flex-row md:items-end md:justify-between">
-      <div>
-        {eyebrow && <p className="mb-3 text-xs text-fg-3">{eyebrow}</p>}
-        <h2 className="font-serif text-[32px] leading-[1.15] tracking-[-0.02em] sm:text-[44px]">
-          <span>{lead}</span>
-          <span className="text-fg-3">{tail}</span>
-        </h2>
-      </div>
-      {note && <p className="max-w-sm text-[13px] leading-6 text-fg-2 md:text-right">{note}</p>}
+      <ul className="flex shrink-0 flex-wrap gap-1.5" aria-label="覆盖的渠道">
+        {VENDOR_STRIP.map((v) => (
+          <li key={v} className="rounded-full bg-fill-2 px-2.5 py-1 text-xs text-fg-2">
+            {v}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -477,125 +375,70 @@ function EmptyState({ caseCount, onDemo }: { caseCount: number; onDemo: () => vo
     { icon: Table2, title: "多模型对比", text: "一次选多个模型，共享并发上限同时检测，结果先以对比矩阵并排展示，再逐个下钻。", tag: "最多 12 个" },
   ];
   return (
-    <div className="rounded-[28px] bg-surface-1 p-1.5 ring-1 ring-line-1">
-      <div className="relative overflow-hidden rounded-[22px] bg-card px-5 py-6 shadow-raised sm:px-7 sm:py-7">
-        <div aria-hidden className="dot-grid pointer-events-none absolute inset-x-0 top-0 h-40 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 className="text-[15px] font-medium tracking-[-0.01em]">检测会做什么</h3>
-            <p className="mt-1 max-w-md text-[13px] leading-6 text-fg-2">报告会出现在这里。还没有可用的 Key？内置的模拟上游有 6 家厂商的正常渠道和两个掺假渠道，可以先跑一遍看看。</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={onDemo} className="self-start">
-            <FlaskConical className="size-3.5" /> 填入演示端点
-          </Button>
+    <div className="relative overflow-hidden rounded-2xl bg-card shadow-raised">
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div>
+          <h2 className="text-[15px] font-medium tracking-[-0.01em]">报告会出现在这里</h2>
+          <p className="mt-1 max-w-xl text-[13px] leading-6 text-fg-2">还没有可用的 Key？内置的模拟上游有 6 家厂商的正常渠道和两个掺假渠道，可以先跑一遍看看。</p>
         </div>
-        <ul className="relative mt-6 divide-y divide-line-1">
-          {items.map(({ icon: Icon, title, text, tag }) => (
-            <li key={title} className="flex gap-4 py-4 first:pt-0 last:pb-0">
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-background text-fg-2 shadow-raised">
-                <Icon className="size-4" />
+        <Button variant="outline" onClick={onDemo} className="self-start sm:self-auto">
+          <FlaskConical className="size-4" /> 填入演示端点
+        </Button>
+      </div>
+      <ul className="grid gap-px border-t border-line-1 bg-line-1 sm:grid-cols-2">
+        {items.map(({ icon: Icon, title, text, tag }) => (
+          <li key={title} className="bg-card p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2.5">
+                <span className="grid size-8 place-items-center rounded-lg bg-fill-2 text-fg-2">
+                  <Icon className="size-4" />
+                </span>
+                <span className="text-sm font-medium">{title}</span>
               </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                  <span className="text-sm font-medium">{title}</span>
-                  <span className="rounded-md bg-fill-2 px-1.5 py-0.5 font-mono text-[11px] text-fg-3">{tag}</span>
-                </div>
-                <p className="mt-1 text-[13px] leading-6 text-fg-2">{text}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-function FlowNode({ icon: Icon, title, sub, mono, highlight, className }: { icon: typeof KeyRound; title: string; sub: string; mono?: boolean; highlight?: boolean; className?: string }) {
-  return (
-    <div className={cn("relative z-10 flex items-center gap-3 rounded-xl bg-background/90 p-3 shadow-float backdrop-blur", highlight && "ring-1 ring-brand/40", className)}>
-      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-fill-2 text-fg-2">
-        <Icon className="size-4" />
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-[13px] font-medium">{title}</span>
-        <span className={cn("block truncate text-[11px] text-fg-3", mono && "font-mono")}>{sub}</span>
-      </span>
-    </div>
-  );
-}
-
-function HowItWorks({ caseCount }: { caseCount: number }) {
-  const stats = [
-    { value: "69", label: "指纹参考库中的模型" },
-    { value: "6", label: "按厂商区分的渠道清单" },
-    { value: String(caseCount), label: "渠道成分用例" },
-    { value: "30", label: "降智题（8 问答 + 22 动画）" },
-  ];
-  return (
-    <section id="how" className="mx-auto w-full max-w-7xl scroll-mt-16 px-4 pb-24 sm:px-6 lg:px-8">
-      <SectionHeading lead="一次检测，" tail="一条链路" note="请求带着你的 Key，经本服务原样转发给被测接口——不写日志、不落盘，检测结束即丢弃；回来的响应被拆成三份报告。" />
-      <div className="overflow-hidden rounded-[28px] bg-surface-1 ring-1 ring-line-1">
-        <div className="relative px-4 py-8 sm:px-8 lg:py-12">
-          <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 opacity-60" />
-          {/* connectors (desktop) */}
-          <svg aria-hidden className="pointer-events-none absolute inset-0 hidden h-full w-full text-line-3 lg:block" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <g fill="none" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke">
-              <path d="M10 50 H50" vectorEffect="non-scaling-stroke" />
-              {[22, 50, 78].map((y) => (
-                <g key={y}>
-                  <path d={`M50 50 C60 50 60 ${y} 70 ${y}`} vectorEffect="non-scaling-stroke" />
-                  <path d={`M70 ${y} C80 ${y} 80 50 90 50`} vectorEffect="non-scaling-stroke" />
-                </g>
-              ))}
-            </g>
-          </svg>
-          <div className="relative grid gap-3 lg:grid-cols-5 lg:items-center lg:gap-6">
-            <FlowNode icon={KeyRound} title="你的接口与 Key" sub="Base URL · 模型名" />
-            <FlowNode icon={ShieldCheck} title="本服务" sub="只转发，不保存" highlight />
-            <FlowNode icon={Server} title="被测接口" sub="中转站 / 第三方" mono />
-            <div className="grid gap-3 lg:gap-8">
-              <FlowNode icon={Fingerprint} title="模型指纹" sub="实际是哪个模型" />
-              <FlowNode icon={Layers} title="渠道成分" sub="像不像官方" />
-              <FlowNode icon={Brain} title="降智检测" sub="能力有没有缩水" />
+              <MonoTag>{tag}</MonoTag>
             </div>
-            <FlowNode icon={Waypoints} title="报告" sub="对比矩阵 · JSON 导出" />
+            <p className="mt-3 text-[13px] leading-6 text-fg-2">{text}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="border-t border-line-1 p-5 sm:p-6">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-fg-3">
+          结论长这样 <MonoTag>示例 · 内置演示端点里的掺假渠道</MonoTag>
+        </div>
+        <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-7">
+          <ScoreRing score={22} tone="bad" size={96} label="综合评分" />
+          <div className="min-w-0 flex-1">
+            <div className="font-serif text-[28px] leading-none tracking-[-0.02em] text-danger">高风险</div>
+            <p className="mt-2.5 max-w-3xl text-[13px] leading-6 text-fg-2">
+              声称 <span className="font-mono text-[12px] text-foreground">claude-opus-4.8</span>，指纹最像 <span className="font-mono text-[12px] text-danger">deepseek-v4-flash</span>（置信度
+              &gt;99.9%）；渠道成分 36 分，检出模型被替换、协议转换层等关键问题；智力得分 31 分。
+            </p>
           </div>
         </div>
-        <dl className="grid grid-cols-2 border-t border-line-1 lg:grid-cols-4">
-          {stats.map((s, i) => (
-            <div key={s.label} className={cn("px-6 py-6 sm:px-8 sm:py-7", i % 2 === 1 && "border-l border-line-1", i >= 2 && "border-t border-line-1 lg:border-t-0", i >= 1 && "lg:border-l")}>
-              <dd className="text-[32px] font-medium leading-none tracking-[-0.03em] tabular-nums sm:text-[40px]">{s.value}</dd>
-              <dt className="mt-2.5 text-xs text-fg-2">{s.label}</dt>
-            </div>
-          ))}
-        </dl>
       </div>
-    </section>
+      <p className="flex gap-2.5 border-t border-line-1 bg-fill-1 px-5 py-3.5 text-xs leading-5 text-fg-2 sm:px-6">
+        <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-success" />
+        检测会向被测接口发出真实请求并产生用量：指纹与降智约 27 次，渠道成分按清单约 150–400 次，可在用例清单里按需取消。
+      </p>
+    </div>
   );
 }
 
 function SiteFooter() {
   return (
-    <footer id="privacy" className="border-t border-line-1">
-      <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1fr_auto] lg:px-8">
-        <div className="max-w-2xl space-y-3">
-          <Logo />
-          <p className="text-[13px] leading-6 text-fg-2">
-            API Key（含可选的对照官方 Key）只放在发往本服务的请求体里，由服务端在本次检测期间转发给对应接口，不写日志、不落盘、不回传；进度流与报告中出现的 Key 会被替换为
-            [REDACTED]。生产模式默认拒绝内网与回环地址，且不跟随重定向。
-          </p>
-          <p className="text-xs leading-5 text-fg-3">检测会产生真实用量：成分检测的长上下文、重复次数与模型数都会成倍放大请求量，可在用例清单里按需取消。</p>
-        </div>
-        <div className="flex items-start gap-2 md:justify-end">
-          <a
-            href={REPO}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-full bg-fill-2 px-3 py-1.5 text-[13px] text-fg-2 transition-colors hover:bg-fill-3 hover:text-foreground"
-          >
-            <GithubMark className="size-3.5" /> 源码 <ArrowUpRight className="size-3.5" />
-          </a>
-        </div>
+    <footer className="border-t border-line-1">
+      <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-5 sm:px-6 md:flex-row md:items-center md:justify-between md:gap-8">
+        <p className="max-w-4xl text-xs leading-5 text-fg-3">
+          API Key 只放在发往本服务的请求体里，由服务端在本次检测期间转发给对应接口，不写日志、不落盘、不回传；进度流与报告中出现的 Key 会被替换为 [REDACTED]。
+        </p>
+        <a
+          href={REPO}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full bg-fill-2 px-3 py-1.5 text-xs text-fg-2 transition-colors hover:bg-fill-3 hover:text-foreground md:self-auto"
+        >
+          <GithubMark className="size-3.5" /> 源码 <ArrowUpRight className="size-3.5" />
+        </a>
       </div>
     </footer>
   );

@@ -35,7 +35,7 @@ export function ReportView({ report }: { report: CheckReport }) {
               <MonoTag className="max-w-full truncate">{report.target.model}</MonoTag>
             </div>
             <h2 className={cn("mt-2 font-serif text-[34px] leading-[1.1] tracking-[-0.02em] sm:text-[40px]", TONE_TEXT[tone])}>{OVERALL_WORD[tone]}</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-fg-2">{report.overall.summary}</p>
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-fg-2">{report.overall.summary}</p>
             <div className="mt-4 flex flex-wrap gap-1.5">
               <MonoTag>{report.target.host}</MonoTag>
               <MonoTag>
@@ -59,9 +59,23 @@ export function ReportView({ report }: { report: CheckReport }) {
           ]}
         />
       </Tray>
-      {report.fingerprint && <FingerprintCard fp={report.fingerprint} />}
-      {report.composition && <CompositionCard c={report.composition} />}
-      {report.degradation && <DegradationCard dg={report.degradation} />}
+      {report.composition && (report.fingerprint || report.degradation) ? (
+        <div className="grid grid-cols-1 gap-5 2xl:grid-cols-2 2xl:items-start">
+          <div className="min-w-0 space-y-5">
+            {report.fingerprint && <FingerprintCard fp={report.fingerprint} />}
+            {report.degradation && <DegradationCard dg={report.degradation} />}
+          </div>
+          <div className="min-w-0">
+            <CompositionCard c={report.composition} />
+          </div>
+        </div>
+      ) : (
+        <>
+          {report.fingerprint && <FingerprintCard fp={report.fingerprint} />}
+          {report.composition && <CompositionCard c={report.composition} />}
+          {report.degradation && <DegradationCard dg={report.degradation} />}
+        </>
+      )}
       <p className="px-1 text-xs leading-5 text-fg-3">
         综合评分 = 降智得分 × 指纹系数（一致 1.0、未收录 0.9、同家族 0.75、不一致 0.4），启用成分检测时再与成分得分按 6 : 4 加权（检出关键问题时成分得分按不超过 40 计）。
       </p>
@@ -302,7 +316,7 @@ function VisualTestCard({ t }: { t: DegradationTestResult }) {
       {t.stats && t.stats.runs > 1 && <RunStatsLine t={t} />}
       {t.error && <p className="text-xs text-danger">{t.error}</p>}
       {t.runs && t.runs.length > 1 ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           {t.runs.map((r) => (
             <div key={r.index} className="space-y-2 rounded-xl bg-fill-1 p-2.5">
               <div className="flex items-center justify-between text-xs">

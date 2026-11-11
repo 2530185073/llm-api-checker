@@ -148,7 +148,7 @@ function Pick({
 
 function ToggleRow({ id, label, hint, checked, onChange, disabled }: { id: string; label: string; hint: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <div className="flex items-start justify-between gap-3 px-3.5 py-3">
+    <div className="flex items-start justify-between gap-3 px-3.5 py-2.5">
       <div>
         <Label htmlFor={id} className="text-sm">
           {label}
@@ -248,7 +248,7 @@ export function ConfigForm({
 
   return (
     <form
-      className="space-y-5"
+      className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
         if (!canStart || running) return;

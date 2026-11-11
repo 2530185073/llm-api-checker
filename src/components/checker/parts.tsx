@@ -94,14 +94,16 @@ export function Segmented<T extends string>({ value, onChange, items, label }: {
 /** A row of large numerals over small captions, separated by hairlines. */
 export function StatStrip({ items, className }: { items: { label: string; value: React.ReactNode; small?: boolean }[]; className?: string }) {
   return (
-    <dl className={cn("grid grid-cols-2 lg:grid-cols-4", className)}>
-      {items.map((s, i) => (
-        <div key={s.label} className={cn("min-w-0 px-5 py-4 sm:px-6", i % 2 === 1 && "border-l border-line-1", i >= 2 && "border-t border-line-1 lg:border-t-0", i >= 1 && "lg:border-l")}>
-          <dd className={cn("leading-7 font-medium tabular-nums", s.small ? "text-[15px] tracking-[-0.01em]" : "truncate text-[22px] tracking-[-0.02em]")}>{s.value}</dd>
-          <dt className="mt-1 text-xs text-fg-3">{s.label}</dt>
-        </div>
-      ))}
-    </dl>
+    <div className={cn("@container", className)}>
+      <dl className="grid grid-cols-2 @xl:grid-cols-4">
+        {items.map((s, i) => (
+          <div key={s.label} className={cn("min-w-0 px-5 py-4 sm:px-6", i % 2 === 1 && "border-l border-line-1", i >= 2 && "border-t border-line-1 @xl:border-t-0", i >= 1 && "@xl:border-l")}>
+            <dd className={cn("leading-7 font-medium tabular-nums", s.small ? "text-[15px] tracking-[-0.01em]" : "truncate text-[22px] tracking-[-0.02em]")}>{s.value}</dd>
+            <dt className="mt-1 text-xs text-fg-3">{s.label}</dt>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 

@@ -61,7 +61,7 @@ export function CaseChecklist({
 
   return (
     <Dialog>
-      <DialogTrigger render={<Button type="button" variant="outline" className="h-10 w-full justify-between rounded-xl px-3" disabled={disabled || !catalog} />}>
+      <DialogTrigger render={<Button type="button" variant="outline" className="h-9 w-full justify-between rounded-[10px] px-3" disabled={disabled || !catalog} />}>
         <span className="inline-flex items-center gap-1.5">
           <ListChecks className="size-4" /> 用例清单
         </span>
