@@ -1,4 +1,6 @@
 import type {
+  RunResult,
+  RunStats,
   CallResult,
   DegradationReport,
   DegradationTestResult,
@@ -216,7 +218,8 @@ export function summarizeDegradation(
   const passed = graded.filter((t) => t.status === "normal");
   const totalWeight = graded.reduce((sum, t) => sum + t.weight, 0);
   const allWeight = tests.reduce((sum, t) => sum + t.weight, 0);
-  const score = totalWeight ? Math.round((passed.reduce((sum, t) => sum + t.weight, 0) / totalWeight) * 100) : null;
+  const rate = (t: DegradationTestResult) => t.stats?.passRate ?? (t.status === "normal" ? 1 : 0);
+  const score = totalWeight ? Math.round((graded.reduce((sum, t) => sum + t.weight * rate(t), 0) / totalWeight) * 100) : null;
   let verdict: DegradationReport["verdict"] = "inconclusive";
   let verdictText = "有效结果不足，无法判断（请求失败不计为答错）";
   if (score !== null && totalWeight >= allWeight / 2) {
@@ -332,5 +335,56 @@ export function summarizeDegradation(
       responseModels,
     },
     signals,
+  };
+}
+
+const pct = (xs: number[], p: number) => {
+  if (!xs.length) return null;
+  const sorted = [...xs].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1))];
+};
+
+/** Folds N graded runs of one test into a single result: status by majority, score by pass rate. */
+export function aggregateRuns(runs: DegradationTestResult[]): DegradationTestResult {
+  const first = runs[0];
+  const graded = runs.filter((r) => r.status !== "error");
+  const passed = graded.filter((r) => r.status === "normal");
+  const ok = runs.filter((r) => r.status !== "error").map((r) => r.durationMs);
+  const ttfts = runs.map((r) => r.ttftMs).filter((v): v is number => v !== null);
+  const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
+  const m = avg(ok);
+  const stdev = ok.length > 1 && m !== null ? Math.round(Math.sqrt(ok.reduce((a, b) => a + (b - m) ** 2, 0) / (ok.length - 1))) : ok.length ? 0 : null;
+  const stats: RunStats = {
+    runs: runs.length,
+    graded: graded.length,
+    passed: passed.length,
+    passRate: graded.length ? passed.length / graded.length : null,
+    meanMs: m,
+    p95Ms: pct(ok, 95),
+    stdevMs: stdev,
+    meanTtftMs: avg(ttfts),
+  };
+  const rep = passed[0] ?? graded[0] ?? first;
+  const runResults: RunResult[] = runs.map((r, index) => ({
+    index,
+    status: r.status,
+    answerPassed: r.answerPassed,
+    latencyPassed: r.latencyPassed,
+    output: r.output,
+    durationMs: r.durationMs,
+    ttftMs: r.ttftMs,
+    usage: r.usage,
+    error: r.error,
+    artifact: r.artifact,
+  }));
+  const status: TestStatus = !graded.length ? "error" : passed.length * 2 >= graded.length ? "normal" : "degraded";
+  return {
+    ...rep,
+    status,
+    durationMs: m ?? rep.durationMs,
+    ttftMs: stats.meanTtftMs,
+    reasoningSeen: runs.some((r) => r.reasoningSeen),
+    runs: runs.length > 1 ? runResults : undefined,
+    stats,
   };
 }

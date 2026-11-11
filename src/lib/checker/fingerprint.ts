@@ -1,4 +1,5 @@
 import { generateChallenges, loadDetector, parseNumbers, type Analysis, type Detector } from "lmfpd-sdk";
+import { normalizeModelId } from "./model-id";
 import type { CallResult, Candidate, ClaimStatus, Evidence, FingerprintReport, FingerprintSample, TokenizerSummary } from "./types";
 
 let detectorPromise: Promise<Detector> | null = null;
@@ -17,16 +18,7 @@ export function getDetector(): Promise<Detector> {
 
 export const fingerprintChallenges = () => generateChallenges(3);
 
-/** Maps vendor ids like `anthropic/claude-sonnet-4-6-20260115` onto reference ids like `claude-sonnet-4.6`. */
-export function normalizeModelId(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/^.*\//, "")
-    .replace(/:.*$/, "")
-    .replace(/-(latest|\d{8}|\d{4}-\d{2}-\d{2})$/, "")
-    .replace(/(\d)-(\d)(?!\d{2,})/g, "$1.$2");
-}
+export { normalizeModelId };
 
 const familyPrefix = (id: string) => normalizeModelId(id).split(/[-.\d]/)[0];
 

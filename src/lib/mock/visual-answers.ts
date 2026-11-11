@@ -99,6 +99,16 @@ const SUBJECT_WORDS: Record<string, string[]> = {
   gears: ["gear-12", "gear-24", "gear-36", "gear-18"],
   city: ["far-layer", "building", "window", "car", "road", "headlight"],
   strokes: ["永", "点", "横折钩", "横撇", "撇", "捺"],
+  lighthouse: ["lighthouse-tower", "lamp", "beam", "wave", "boat"],
+  newton: ["ball", "string", "beam", "pendulum"],
+  hummingbird: ["hummingbird", "beak", "wing", "flower", "petal"],
+  windmill: ["windmill", "blade", "sun", "sky"],
+  rocket: ["rocket", "flame", "smoke", "countdown"],
+  aquarium: ["fish", "fin", "bubble", "seaweed"],
+  ecg: ["ecg-wave", "bpm", "heart", "grid"],
+  traffic: ["traffic-light", "car", "road", "stop-line"],
+  origami: ["paper", "fold", "crane", "step-1"],
+  dna: ["helix", "strand", "base-pair", "A", "G"],
 };
 
 function genericScene(key: string): string {
@@ -118,6 +128,8 @@ function genericScene(key: string): string {
       ? `<script>setInterval(function(){var d=new Date();document.getElementById('label').textContent=d.toLocaleTimeString();},1000);</script>`
       : key === "balls"
         ? `<script>var gravity=0.3,vy=0;document.addEventListener('click',function(){vy=-6;});</script>`
+        : key === "newton" || key === "dna"
+          ? `<script>var angle=0;setInterval(function(){angle=Math.sin(Date.now()/300);},30);</script>`
         : key === "strokes"
           ? `<style>path{stroke-dasharray:200;animation:write 2s linear infinite}@keyframes write{from{stroke-dashoffset:200}to{stroke-dashoffset:0}}</style>`
           : "";
@@ -154,6 +166,16 @@ export function visualAnswer(smart: boolean, prompt: string): string | null {
       gears: "齿轮",
       city: "城市夜景",
       strokes: "「永」",
+      lighthouse: "灯塔",
+      newton: "牛顿摆",
+      hummingbird: "蜂鸟",
+      windmill: "风车",
+      rocket: "火箭发射",
+      aquarium: "水族箱",
+      ecg: "心电",
+      traffic: "十字路口",
+      origami: "纸鹤",
+      dna: "DNA",
     }).find(([, word]) => prompt.includes(word))?.[0] ?? "scene";
   return smart ? genericScene(key) : `<svg><text>${key}</text></svg>`;
 }

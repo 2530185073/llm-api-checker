@@ -69,6 +69,7 @@ export async function runTokenizerProbe(
   return {
     kind: verdict.kind,
     className: cls ? `${cls.series_zh}（${cls.lab_name}）` : verdict.top.id,
+    classId: verdict.top.id,
     lab: cls?.lab_name ?? "",
     confidence: verdict.confidence,
     probes: observations.filter((o) => o.probe !== null).length,

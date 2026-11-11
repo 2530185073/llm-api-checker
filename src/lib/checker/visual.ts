@@ -140,6 +140,114 @@ export const VISUAL_PRESETS: VisualPreset[] = [
       { label: "stroke-dashoffset 动画", terms: /stroke-?dashoffset|strokeDashoffset/i },
     ],
   },
+  {
+    key: "lighthouse",
+    name: "灯塔夜巡",
+    prompt:
+      "创建一个 HTML，用 SVG 绘制夜晚海边灯塔的 2D 动画：灯塔有红白相间的塔身与顶部灯室，一束扇形光柱绕灯室缓慢旋转并扫过海面，海面有至少三层起伏错开的波浪持续涌动，天上有闪烁的星星与一轮弯月，远处一艘小船随波浪上下摇晃。所有样式与脚本内联。你不需要任何测试。",
+    subjects: [
+      { label: "灯塔与灯室", terms: /lighthouse|tower|lamp|灯塔|灯室/i },
+      { label: "旋转光柱", terms: /beam|light|ray|光柱|光束/i },
+      { label: "波浪 / 小船", terms: /wave|sea|ocean|boat|波浪|海|船/i },
+    ],
+  },
+  {
+    key: "newton",
+    name: "牛顿摆",
+    prompt:
+      "创建一个 HTML，用 SVG 实现一个牛顿摆（五个钢球）的物理动画：五个球用细线挂在横梁下并排接触，最左侧的球被拉起后释放，撞击后能量沿球列传递，只有最右侧的球弹起，再落回撞击把能量传回左侧，如此往复；摆动遵循单摆周期并带轻微阻尼，球体有高光。所有样式与脚本内联。你不需要任何测试。",
+    subjects: [
+      { label: "钢球", terms: /ball|sphere|bob|球/i },
+      { label: "悬线与横梁", terms: /string|line|wire|beam|frame|线|梁/i },
+      { label: "摆动计算", terms: /Math\.(sin|cos)|angle|swing|pendulum|摆/i },
+    ],
+  },
+  {
+    key: "hummingbird",
+    name: "蜂鸟采蜜",
+    prompt:
+      "创建一个 HTML，用 SVG 绘制一只蜂鸟悬停在花朵前采蜜的 2D 动画：蜂鸟有细长的喙、绿色带光泽的羽毛，翅膀以极高频率扇动形成残影，身体在空中轻微上下浮动；喙伸进一朵红色喇叭形花朵，花茎随风轻摆，背景有几片缓慢飘落的花瓣。所有样式与脚本内联。你不需要任何测试。",
+    subjects: [
+      { label: "蜂鸟（喙 / 翅膀）", terms: /hummingbird|bird|beak|wing|蜂鸟|喙|翅/i },
+      { label: "花朵", terms: /flower|petal|stem|blossom|花/i },
+    ],
+  },
+  {
+    key: "windmill",
+    name: "风车农场日落",
+    prompt:
+      "创建一个 HTML，用 SVG 绘制一片风车农场从黄昏到夜晚的 2D 动画：至少三座远近不同的风力发电机，叶片以不同速度持续旋转，近大远小；天空颜色从橙红渐变到深蓝，太阳缓缓沉入地平线后星星逐渐出现，草地随风起伏。所有样式与脚本内联。你不需要任何测试。",
+    subjects: [
+      { label: "风车 / 叶片", terms: /windmill|turbine|blade|风车|叶片/i },
+      { label: "日落天空", terms: /sun|sky|sunset|gradient|太阳|日落|天空/i },
+    ],
+  },
+  {
+    key: "rocket",
+    name: "火箭发射",
+    prompt:
+      "创建一个 HTML，用 SVG 绘制火箭发射的 2D 动画：发射塔旁的火箭上方显示从 5 到 0 的倒计时数字，归零后尾焰点火、底部涌出不断扩散变淡的烟雾粒子，火箭加速升空并带轻微抖动，镜头感地让地面逐渐下移，最终火箭飞出画面后循环重来。所有样式与脚本内联。你不需要任何测试。",
+    subjects: [
+      { label: "火箭", terms: /rocket|ship|nose|fin|火箭/i },
+      { label: "尾焰 / 烟雾", terms: /flame|fire|smoke|exhaust|particle|火焰|烟/i },
+      { label: "倒计时", terms: /countdown|倒计时/i },
+    ],
+  },
+  {
+    key: "aquarium",
+    name: "海底水族箱",
+    prompt:
+      "创建一个 HTML，用 SVG 绘制一个水族箱的 2D 动画：至少四条不同颜色和体型的鱼左右游动并会转身，尾鳍摆动；底部的水草随水流左右摇摆，气泡从底部不断升起并在水面破裂，水面有轻微的光影波纹。所有样式与脚本内联。你不需要任何测试。",
+    subjects: [
+      { label: "鱼（尾鳍）", terms: /fish|fin|tail|鱼|鳍/i },
+      { label: "气泡", terms: /bubble|气泡/i },
+      { label: "水草", terms: /seaweed|weed|plant|kelp|水草/i },
+    ],
+  },
+  {
+    key: "ecg",
+    name: "心电监护仪",
+    prompt:
+      "创建一个 HTML，用 SVG 绘制一个心电监护仪界面：深色网格背景上，一条绿色心电图波形（含 P 波、QRS 波群、T 波）从左向右持续绘制并在右侧擦除旧波形，右上角显示实时跳动的心率数字（在 68–76 之间随机变化），每次 R 波出现时一个红色心形图标闪烁一下。所有样式与脚本内联。你不需要任何测试。",
+    subjects: [
+      { label: "心电波形", terms: /ecg|ekg|wave|pulse|qrs|波形|心电/i },
+      { label: "心率数字", terms: /bpm|heart|rate|心率/i },
+      { label: "网格背景", terms: /grid|pattern|网格/i },
+    ],
+  },
+  {
+    key: "traffic",
+    name: "十字路口红绿灯",
+    prompt:
+      "创建一个 HTML，用 SVG 绘制一个俯视角的十字路口 2D 动画：四个方向各有一组红黄绿信号灯，南北与东西方向交替通行并有黄灯过渡；汽车从四个方向驶来，在红灯前的停止线停下排队，绿灯时依次通过路口，车辆之间保持间距不重叠。所有样式与脚本内联。你不需要任何测试。",
+    subjects: [
+      { label: "信号灯", terms: /traffic|signal|light|红绿灯|信号灯/i },
+      { label: "车辆", terms: /car|vehicle|汽车|车/i },
+      { label: "道路 / 停止线", terms: /road|lane|intersection|stop|路|停止线/i },
+    ],
+  },
+  {
+    key: "origami",
+    name: "折纸鹤",
+    prompt:
+      "创建一个 HTML，用 SVG 演示一张正方形彩纸逐步折成纸鹤的 2D 动画：至少五个折叠步骤，每一步用多边形形变或翻转动画呈现折痕与纸面正反两种颜色，步骤之间有短暂停顿并在旁边显示当前步骤编号与说明，最后纸鹤展开双翼轻轻扇动，然后从头循环。所有样式与脚本内联。你不需要任何测试。",
+    subjects: [
+      { label: "纸 / 折痕", terms: /paper|fold|crease|polygon|纸|折/i },
+      { label: "纸鹤", terms: /crane|bird|wing|鹤/i },
+      { label: "步骤编号", terms: /step|步骤|第\s*\d/i },
+    ],
+  },
+  {
+    key: "dna",
+    name: "DNA 双螺旋",
+    prompt:
+      "创建一个 HTML，用 SVG 绘制一段旋转的 DNA 双螺旋 2D 动画：两条磷酸骨架呈正弦曲线相互缠绕，中间由至少 12 对碱基横档连接，A-T 与 G-C 用不同颜色并标注字母；整体绕竖轴持续旋转，转到背面的部分颜色变暗、变细以表现纵深。所有样式与脚本内联。你不需要任何测试。",
+    subjects: [
+      { label: "双螺旋骨架", terms: /helix|strand|backbone|dna|螺旋|骨架/i },
+      { label: "碱基对", terms: /base|pair|\bA\b|\bG\b|碱基/i },
+      { label: "旋转计算", terms: /Math\.(sin|cos)|rotate|phase|旋转/i },
+    ],
+  },
 ];
 
 export const VISUAL_OUTPUT_LIMIT = 1024 * 1024;

@@ -1,5 +1,5 @@
 import { parseCheck } from "@/lib/checker/request";
-import { runCheck } from "@/lib/checker/run";
+import { runMulti } from "@/lib/checker/run";
 import type { ProgressEvent } from "@/lib/checker/types";
 import { redact } from "@/lib/checker/url";
 
@@ -28,7 +28,8 @@ export async function POST(request: Request) {
       let closed = false;
       const emit = (event: ProgressEvent) => {
         if (closed) return;
-        const line = redact(JSON.stringify(event), options.apiKey);
+        let line = redact(JSON.stringify(event), options.apiKey);
+        if (options.composition.ref) line = redact(line, options.composition.ref.apiKey);
         try {
           controller.enqueue(encoder.encode(line + "\n"));
         } catch {
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       };
       const heartbeat = setInterval(() => emit({ type: "ping" }), 10_000);
       try {
-        const report = await runCheck(options, target.fetchBase, target.host, emit, abort.signal);
+        const report = await runMulti(options, target.fetchBase, target.host, emit, abort.signal);
         emit({ type: "result", report });
       } catch (error) {
         emit({ type: "error", message: (error as Error).message });

@@ -2,10 +2,24 @@ export type Protocol = "chat" | "responses" | "messages";
 export type ProtocolChoice = Protocol | "auto";
 export type JudgeMode = "answer" | "latency" | "both";
 
+export interface CompositionRequest {
+  enabled: boolean;
+  vendor: import("../composition/types").Vendor | "auto";
+  mode: import("../composition/types").Mode;
+  selected: Partial<Record<import("../composition/types").Vendor, string[]>>;
+  ladderMax: number;
+  ref?: { baseUrl: string; fetchBase: string; apiKey: string; model: string };
+  secondModel?: string;
+}
+
 export interface CheckOptions {
   baseUrl: string;
   apiKey: string;
   model: string;
+  models: string[];
+  repeat: number;
+  concurrency: number;
+  composition: CompositionRequest;
   protocol: ProtocolChoice;
   effort?: string;
   judgeMode: JudgeMode;
@@ -70,6 +84,7 @@ export type ClaimStatus = "match" | "family" | "mismatch" | "unlisted" | "unknow
 export interface TokenizerSummary {
   kind: "exact" | "related" | "unknown";
   className: string;
+  classId?: string;
   lab: string;
   confidence: number;
   probes: number;
@@ -125,6 +140,30 @@ export interface VisualArtifact {
   autoScore: number;
 }
 
+export interface RunResult {
+  index: number;
+  status: TestStatus;
+  answerPassed: boolean;
+  latencyPassed: boolean;
+  output: string;
+  durationMs: number;
+  ttftMs: number | null;
+  usage: Usage;
+  error: string | null;
+  artifact?: VisualArtifact;
+}
+
+export interface RunStats {
+  runs: number;
+  graded: number;
+  passed: number;
+  passRate: number | null;
+  meanMs: number | null;
+  p95Ms: number | null;
+  stdevMs: number | null;
+  meanTtftMs: number | null;
+}
+
 export interface DegradationTestResult {
   id: string;
   kind: "qa" | "visual";
@@ -146,6 +185,8 @@ export interface DegradationTestResult {
   reasoningSeen: boolean;
   error: string | null;
   artifact?: VisualArtifact;
+  runs?: RunResult[];
+  stats?: RunStats;
 }
 
 export type DegradationVerdict = "normal" | "suspect" | "degraded" | "inconclusive";
@@ -178,13 +219,25 @@ export interface CheckReport {
   protocolDetection: { attempted: Protocol[]; chosen: Protocol; auto: boolean };
   fingerprint: FingerprintReport | null;
   degradation: DegradationReport | null;
+  composition: import("../composition/types").CompositionReport | null;
+  repeat: number;
   overall: { score: number | null; level: "good" | "warn" | "bad" | "unknown"; summary: string };
   totals: { requests: number; inputTokens: number; outputTokens: number; durationMs: number };
 }
 
+export interface MultiReport {
+  startedAt: string;
+  finishedAt: string;
+  host: string;
+  repeat: number;
+  reports: CheckReport[];
+  errors: { model: string; message: string }[];
+}
+
 export type ProgressEvent =
-  | { type: "stage"; stage: string; message: string }
-  | { type: "step"; group: "fingerprint" | "tokenizer" | "degradation" | "detect"; id: string; label: string; state: "running" | "done" | "failed"; detail?: string }
-  | { type: "result"; report: CheckReport }
+  | { type: "stage"; stage: string; message: string; model?: string }
+  | { type: "step"; group: "fingerprint" | "tokenizer" | "degradation" | "detect" | "composition"; id: string; label: string; state: "running" | "done" | "failed"; detail?: string; model?: string }
+  | { type: "model"; model: string; report?: CheckReport; error?: string }
+  | { type: "result"; report: MultiReport }
   | { type: "error"; message: string }
   | { type: "ping" };

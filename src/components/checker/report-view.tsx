@@ -22,6 +22,7 @@ import type { CheckReport, DegradationReport, DegradationTestResult, Evidence, F
 import { cn } from "@/lib/utils";
 import { CLAIM_LABEL, ms, pct, PROTOCOL_LABEL, TEST_LABEL, TONE_CLASS, TONE_TEXT, tokens, VERDICT_LABEL, type Tone } from "./format";
 import { ScoreRing } from "./score-ring";
+import { CompositionCard } from "./composition-view";
 import { VisualPreview } from "./visual-preview";
 
 function ToneBadge({ tone, children, className }: { tone: Tone; children: React.ReactNode; className?: string }) {
@@ -84,8 +85,9 @@ export function ReportView({ report }: { report: CheckReport }) {
         </CardContent>
       </Card>
       {report.fingerprint && <FingerprintCard fp={report.fingerprint} />}
+      {report.composition && <CompositionCard c={report.composition} />}
       {report.degradation && <DegradationCard dg={report.degradation} />}
-      <p className="text-xs leading-relaxed text-muted-foreground">综合评分 = 降智得分 × 指纹系数（一致 1.0、未收录 0.9、同家族 0.75、不一致 0.4）。</p>
+      <p className="text-xs leading-relaxed text-muted-foreground">综合评分 = 降智得分 × 指纹系数（一致 1.0、未收录 0.9、同家族 0.75、不一致 0.4），启用成分检测时再与成分得分按 6 : 4 加权（检出关键问题时成分得分按不超过 40 计）。</p>
     </div>
   );
 }
@@ -320,8 +322,41 @@ function VisualTestCard({ t }: { t: DegradationTestResult }) {
         {t.responseModel && <span>上游返回模型 {t.responseModel}</span>}
         {t.finishReason && <span>结束原因 {t.finishReason}</span>}
       </div>
+      {t.stats && t.stats.runs > 1 && <RunStatsLine t={t} />}
       {t.error && <p className="text-xs text-red-500">{t.error}</p>}
-      {t.artifact ? <VisualPreview artifact={t.artifact} name={t.name} /> : null}
+      {t.runs && t.runs.length > 1 ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {t.runs.map((r) => (
+            <div key={r.index} className="space-y-1.5 rounded-lg border p-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium">第 {r.index + 1} 次</span>
+                <span className={cn("tabular-nums", r.status === "normal" ? "text-emerald-600" : r.status === "error" ? "text-muted-foreground" : "text-red-500")}>
+                  {TEST_LABEL[r.status].text}
+                  {r.artifact ? ` · ${r.artifact.autoScore} 分` : ""} · {ms(r.durationMs)}
+                </span>
+              </div>
+              {r.artifact ? <VisualPreview artifact={r.artifact} name={`${t.name} #${r.index + 1}`} compact /> : <p className="text-xs text-red-500">{r.error ?? "没有输出"}</p>}
+            </div>
+          ))}
+        </div>
+      ) : t.artifact ? (
+        <VisualPreview artifact={t.artifact} name={t.name} />
+      ) : null}
+    </div>
+  );
+}
+
+function RunStatsLine({ t }: { t: DegradationTestResult }) {
+  const s = t.stats!;
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md bg-muted/40 px-2 py-1.5 text-xs tabular-nums">
+      <span>
+        通过率 <b>{s.passRate === null ? "—" : `${Math.round(s.passRate * 100)}%`}</b>（{s.passed}/{s.graded}，共 {s.runs} 次）
+      </span>
+      <span>平均 {ms(s.meanMs)}</span>
+      <span>P95 {ms(s.p95Ms)}</span>
+      <span>标准差 {ms(s.stdevMs)}</span>
+      <span>平均首字 {ms(s.meanTtftMs)}</span>
     </div>
   );
 }
@@ -340,6 +375,7 @@ function TestRow({ t }: { t: DegradationTestResult }) {
             <div className="truncate text-sm font-medium">{t.name}</div>
             <div className="text-xs text-muted-foreground">
               {t.category} · 权重 {t.weight}
+              {t.stats && t.stats.runs > 1 ? ` · 通过 ${t.stats.passed}/${t.stats.graded}` : ""}
             </div>
           </div>
           <div className="hidden text-right text-xs tabular-nums text-muted-foreground sm:block">
@@ -350,6 +386,19 @@ function TestRow({ t }: { t: DegradationTestResult }) {
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="space-y-2 px-3 pb-3 text-sm">
+            {t.stats && t.stats.runs > 1 && <RunStatsLine t={t} />}
+            {t.runs && t.runs.length > 1 && (
+              <ul className="space-y-1 text-xs">
+                {t.runs.map((r) => (
+                  <li key={r.index} className="flex gap-2 rounded bg-muted/30 px-2 py-1">
+                    <span className="w-12 shrink-0 text-muted-foreground">#{r.index + 1}</span>
+                    <span className={cn("w-14 shrink-0", r.status === "normal" ? "text-emerald-600" : r.status === "error" ? "text-muted-foreground" : "text-red-500")}>{TEST_LABEL[r.status].text}</span>
+                    <span className="w-16 shrink-0 tabular-nums text-muted-foreground">{ms(r.durationMs)}</span>
+                    <span className="min-w-0 truncate font-mono">{r.error ?? r.output}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="rounded-md bg-muted/40 p-2">
                 <div className="text-xs text-muted-foreground">标准答案</div>

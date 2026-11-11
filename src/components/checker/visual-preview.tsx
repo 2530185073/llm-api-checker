@@ -16,7 +16,7 @@ function previewDocument(html: string) {
 
 const REVIEW_CRITERIA = ["主体形态是否可辨（如鹈鹕的长喙与喉囊）", "车轮、踏板等机构是否合理", "动作是否连贯自然", "场景与代码是否完整"];
 
-export function VisualPreview({ artifact, name }: { artifact: VisualArtifact; name: string }) {
+export function VisualPreview({ artifact, name, compact = false }: { artifact: VisualArtifact; name: string; compact?: boolean }) {
   const [view, setView] = useState<"preview" | "source">("preview");
   const [nonce, setNonce] = useState(0);
   const doc = useMemo(() => previewDocument(artifact.html), [artifact.html]);
@@ -53,7 +53,7 @@ export function VisualPreview({ artifact, name }: { artifact: VisualArtifact; na
         <Button type="button" variant="ghost" size="sm" onClick={download} disabled={!artifact.html}>
           <Download className="size-3.5" /> 下载 HTML
         </Button>
-        <span className="ml-auto text-xs text-muted-foreground">隔离沙箱 · 仅加载内联内容</span>
+        {!compact && <span className="ml-auto text-xs text-muted-foreground">隔离沙箱 · 仅加载内联内容</span>}
       </div>
       {view === "preview" ? (
         artifact.html ? (
@@ -63,7 +63,7 @@ export function VisualPreview({ artifact, name }: { artifact: VisualArtifact; na
             sandbox="allow-scripts"
             referrerPolicy="no-referrer"
             srcDoc={doc}
-            className="h-[300px] w-full rounded-lg border bg-white sm:h-[420px]"
+            className={cn("w-full rounded-lg border bg-white", compact ? "h-[200px] sm:h-[240px]" : "h-[300px] sm:h-[420px]")}
           />
         ) : (
           <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">未提取到 HTML，无法预览</div>
@@ -73,7 +73,7 @@ export function VisualPreview({ artifact, name }: { artifact: VisualArtifact; na
           {artifact.html || "（空）"}
         </pre>
       )}
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
+      <div className={cn("grid gap-3", compact ? "hidden" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]")}>
         <div className="rounded-lg border p-3">
           <div className="mb-2 flex items-center justify-between text-xs font-medium">
             <span>自动检查</span>
