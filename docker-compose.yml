@@ -1,0 +1,11 @@
+services:
+  llm-api-checker:
+    build: .
+    image: llm-api-checker:latest
+    ports:
+      - "43117:3000"
+    environment:
+      # 设为 1 允许检测内网 / localhost 上的接口（例如本机部署的 one-api、new-api）
+      ALLOW_PRIVATE_TARGETS: "0"
+      MAX_CONCURRENT_CHECKS: "4"
+    restart: unless-stopped
