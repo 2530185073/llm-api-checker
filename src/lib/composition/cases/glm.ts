@@ -30,11 +30,11 @@ const glmIdRule = (id: string) => (/^chatcmpl-tool-/.test(id) ? "vLLM 合成 id"
 export const GLM_CASES = defineCases("glm", [
   ["basic", "连通性 / 端点画像", "基础对话", 2, ["pre"], "最简 chat/completions 请求要求回复 OK-<nonce>，校验 200、role=assistant、content 含 nonce、finish_reason=stop、带 usage。鉴权或 404 失败则其余用例全部跳过。", K.basicCase],
   ["backend", "连通性 / 端点画像", "后端判定", 0, ["ref", "pre"], "按响应 id 形态（z.ai 为 14 位时间戳 + 16 位随机）、request_id 与 Server / cf-ray 等响应头判断后端；结果供其它用例参考。不计分。", K.backendCase, { officialWeight: 0 }],
-  ["endpoint", "连通性 / 端点画像", "端点画像（标准 / Coding / bigmodel）", 0, ["ref", "pre"], "按 base_url 判定标准 API、Coding Plan 或 open.bigmodel.cn；中转地址记录主机名。结果决定 effort 枚举等预期。", K.endpointProfileCase([[/api\.z\.ai\/api\/coding/, "z.ai Coding Plan"], [/api\.z\.ai/, "z.ai 标准 API"], [/bigmodel\.cn/, "open.bigmodel.cn"]]), { officialWeight: 0 }],
+  ["endpoint", "连通性 / 端点画像", "端点画像（标准 / Coding / bigmodel）", 0, ["ref", "pre"], "按 base_url 判定标准 API、Coding Plan 或 open.bigmodel.cn；中转地址记录主机名。结果决定 effort 枚举等预期。", K.endpointProfileCase([[/api\.z\.ai\/api\/coding/, "z.ai Coding Plan"], [/api\.z\.ai/, "z.ai 标准 API"], [/bigmodel\.cn/, "open.bigmodel.cn"]]), { officialWeight: 0, protocols: [] }],
   ["model_echo", "连通性 / 端点画像", "模型名回显", 2, [], "model 字段应回显请求的 GLM 型号。回显非 GLM 名字或更低代际的官方名判模型被替换；同代际的另一型号给警告；其它自定义名在等价模式只记录。", K.modelEchoCase(/glm/i, /glm-\d+(\.\d+)?-(flash|air|x)/i)],
   ["id_shape", "连通性 / 端点画像", "ID / request_id 形态", 0, ["ref"], "z.ai 响应 id 为 14 位时间戳 + 16 位随机，并原样回显请求里的 request_id。chatcmpl- / UUID / msg_ 为非 z.ai 形态。", K.idShapeCase, { officialWeight: 2 }],
-  ["models", "连通性 / 端点画像", "/models 与面板指纹（参考）", 0, ["ref"], "GET /models：列表里出现非 GLM 模型说明是面板汇总列表，记为中转痕迹；vLLM 风格列表在等价模式只记录。", K.modelsListCase(/glm/i), { officialWeight: 0 }],
-  ["usage_invariants", "usage 计费完整性", "usage 不变量（全局）", 3, ["critical", "final"], "汇总本次运行每个 200 响应的 usage：四个键齐全、total = prompt + completion、0 ≤ cached ≤ prompt、有内容时 completion ≥ 1。算术不成立判 usage 造假；只缺键按模式记警告或只记录。", K.usageInvariantsCase],
+  ["models", "连通性 / 端点画像", "/models 与面板指纹（参考）", 0, ["ref"], "GET /models：列表里出现非 GLM 模型说明是面板汇总列表，记为中转痕迹；vLLM 风格列表在等价模式只记录。", K.modelsListCase(/glm/i), { officialWeight: 0, protocols: [] }],
+  ["usage_invariants", "usage 计费完整性", "usage 不变量（全局）", 3, ["critical", "final"], "汇总本次运行每个 200 响应的 usage：四个键齐全、total = prompt + completion、0 ≤ cached ≤ prompt、有内容时 completion ≥ 1。算术不成立判 usage 造假；只缺键按模式记警告或只记录。", K.usageInvariantsCase, { protocols: [] }],
   ["zero_output", "usage 计费完整性", "非流式 0 输出 token", 3, [], "三条提示分别要求约 1 / 50 / 300 词的回答。completion_tokens 不应为 0、不应低于可见文本估算的一半，扣掉思考后应随长度递增；三档完全相同为常数填充。", K.zeroOutputNonStreamCase],
   ["zero_output_stream", "usage 计费完整性", "流式 0 输出 token / 末块 usage", 3, [], "同样三条提示以流式发送：应恰有带 usage 的末块、completion_tokens > 0、以 [DONE] 结束。等价模式下默认流缺 usage 时补发 include_usage，补发后正常只记录。", K.zeroOutputStreamCase],
   ["cached_tokens", "usage 计费完整性", "cached_tokens 语义（首发 0、复发 >0、≤ prompt）", 3, [], "用本用例独有的约 3K token 前缀发三次：首发不应大额命中，完全相同的复发应命中，cached 不得超过 prompt；首发就大额命中且三次恒等为常数填充。", K.cachedTokensCase],
@@ -49,7 +49,7 @@ export const GLM_CASES = defineCases("glm", [
   ["ref_tokenizer", "与官方对照（精度 / 性能）", "分词计数比对（对照官方）", 3, ["critical"], "固定文本分别发给被测与官方，逐段比较 prompt_tokens：恒定偏移是模板差异，个别段偏离说明词表不同（换模），整体多出 60 以上说明注入。需要对照端点。", refTokenizerCase, { needsRef: true }],
   ["ref_throughput", "与官方对照（精度 / 性能）", "解码吞吐 / 首字延迟（对照官方）", 2, ["critical", "final"], "收尾独占运行：被测与官方交错发流式数数请求，按逐对比值判定；无对照或对照失败时按绝对阈值判定。", (c) => refThroughputCase(c, /flashx/.test(c.model) ? 50 : 10)],
   ["thinking_profile", "与官方对照（精度 / 性能）", "思考画像：正确性 / 绕圈 / 耗尽", 1, [], "组合计数题与 15 步算术链：核对答案、思考的 8-gram 重复率与是否耗尽预算；有对照时与官方比较，产出精度证据。", (c) => thinkingProfileCase(c, {})],
-  ["precision_verdict", "与官方对照（精度 / 性能）", "精度综合判定（收尾）", 2, ["critical", "final"], "汇总各精度用例：强证据 2 分、弱证据 1 分，合计 ≥ 4 才判疑似低精度；单个精度用例不会单独下结论。", precisionVerdictCase],
+  ["precision_verdict", "与官方对照（精度 / 性能）", "精度综合判定（收尾）", 2, ["critical", "final"], "汇总各精度用例：强证据 2 分、弱证据 1 分，合计 ≥ 4 才判疑似低精度；单个精度用例不会单独下结论。", precisionVerdictCase, { protocols: [] }],
   ["context_ladder", "上下文窗口", "上下文阶梯三针检索（8K→270K）", 3, ["critical"], "逐档送入填充文本并在 3% / 50% / 97% 埋三根互不相关的针，要求按序答出；三针全中且 prompt_tokens ≥ 0.6×档位才算通过，遇到第一个失败档即停。官方窗口以内失败判上下文被截断。", (c) => contextLadderCase(c, { tiers: [8000, 32000, 64000, 128000, 200000, 230000, 270000], window: F(c).window, ladderMax: ladderMax(c) })],
   ["max_tokens_contract", "上下文窗口", "max_tokens 上限契约", 2, [], "max_tokens=131072 应被接受；131073 官方应 400，被接受在官方模式警告、等价模式只记录。", async (c) => {
     const a = K.body(c, "Reply OK.");

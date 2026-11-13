@@ -203,7 +203,7 @@ export const GEMINI_CASES = defineCases("gemini", [
   ["model_profile", "身份/成分", "型号画像", 0, ["unscored"], "列出所请求型号的官方规格（思考档位、多候选、prefill、缓存门槛、隐藏前缀 token 数），供代际用例判定。", async (c) => {
     const f = F(c);
     return f.known ? info(`Gemini ${f.version}`, [`思考档位 ${f.thinkingLevels?.join("/") ?? "thinkingBudget"}`, `多候选 ${f.multiCandidates ? "支持" : "不支持"}`, `prefill ${f.prefillAllowed ? "支持" : "不支持"}`, `隐式缓存门槛 ${f.cacheMin}`, `隐藏前缀 ${f.hiddenPrefix}`]) : warn("无法识别型号");
-  }],
+  }, { protocols: [] }],
   ["platform", "身份/成分", "平台判定", 0, ["unscored", "pre"], "依据 serviceTier、server-timing、createTime / trafficType 等被动指纹判断是 Gemini API、Vertex AI 还是兼容层。", platform],
   ["thinking_config", "身份/成分", "思考配置（代际指纹）", 3, [], "Gemini 3 / 4：includeThoughts 时应返回思考摘要且 thoughtsTokenCount > 0，没有的档位与 thinkingLevel + thinkingBudget 同传都应 400。Gemini 2.5 用 thinkingBudget。", async (c) => {
     const f = F(c);

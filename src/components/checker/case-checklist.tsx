@@ -132,6 +132,11 @@ export function CaseChecklist({
                                   {TAG_TEXT[t]}
                                 </Badge>
                               ))}
+                            {vendor === "openai" && c.protocols?.length === 1 && (
+                              <Badge variant="outline" className="font-mono text-[10px]">
+                                仅 {c.protocols[0] === "chat" ? "/chat/completions" : "/responses"}
+                              </Badge>
+                            )}
                             {c.needsRef && (
                               <Badge variant="secondary" className="text-[10px]">
                                 需对照端点

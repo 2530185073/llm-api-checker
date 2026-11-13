@@ -119,6 +119,8 @@ export async function handleMessages(p: Persona, body: Json, headers: Headers): 
   const id = p.honest ? `msg_01${rand(22)}` : `chatcmpl-${randomBytes(16).toString("hex")}`;
   const promptText = `${system}\n${turns.map((t) => t.text).join("\n")}${body.tools ? JSON.stringify(body.tools) : ""}`;
   const input = inputTokens(p, promptText) + (media.images.length ? 80 : 0) + (media.pdfs.length ? 300 : 0);
+  if (p.honest && input > p.window)
+    return Response.json({ type: "error", error: { type: "invalid_request_error", message: `prompt is too long: ${input} tokens > ${p.window} maximum` } }, { status: 400 });
   const cache = p.honest ? cacheInfo(body, p.id) : null;
   const read = cache?.read ?? 0;
   const creation = cache?.creation ?? 0;

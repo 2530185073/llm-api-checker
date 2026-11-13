@@ -81,4 +81,5 @@ export interface CaseInfo {
   desc: string;
   needsRef?: boolean;
   needsSecond?: boolean;
+  protocols?: string[];
 }

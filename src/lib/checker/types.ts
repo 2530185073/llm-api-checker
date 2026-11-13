@@ -10,6 +10,8 @@ export interface CompositionRequest {
   ladderMax: number;
   ref?: { baseUrl: string; fetchBase: string; apiKey: string; model: string };
   secondModel?: string;
+  /** With an explicit protocol, also allow vendor-native composition requests on other endpoints (opt-in). */
+  allowNative: boolean;
 }
 
 export interface CheckOptions {
@@ -21,6 +23,8 @@ export interface CheckOptions {
   concurrency: number;
   composition: CompositionRequest;
   protocol: ProtocolChoice;
+  /** auto: detected per model; explicit: chosen by the user; url: implied by a pasted endpoint URL. */
+  protocolSource: "auto" | "explicit" | "url";
   effort?: string;
   judgeMode: JudgeMode;
   fingerprint: boolean;
@@ -216,7 +220,7 @@ export interface CheckReport {
   startedAt: string;
   finishedAt: string;
   target: { host: string; protocol: Protocol; model: string; effort?: string };
-  protocolDetection: { attempted: Protocol[]; chosen: Protocol; auto: boolean };
+  protocolDetection: { attempted: Protocol[]; chosen: Protocol; auto: boolean; source: "auto" | "explicit" | "url"; locked: boolean };
   fingerprint: FingerprintReport | null;
   degradation: DegradationReport | null;
   composition: import("../composition/types").CompositionReport | null;

@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import type { JudgeMode, ProtocolChoice } from "@/lib/checker/types";
+import type { JudgeMode, Protocol, ProtocolChoice } from "@/lib/checker/types";
+import { impliedProtocol, PROTOCOL_PATH } from "@/lib/checker/url";
 import { detectVendor } from "@/lib/composition/facts";
 import type { Mode, Vendor } from "@/lib/composition/types";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ export interface FormState {
   refApiKey: string;
   refModel: string;
   secondModel: string;
+  allowNative: boolean;
 }
 
 export const INITIAL_FORM: FormState = {
@@ -88,14 +90,63 @@ export const INITIAL_FORM: FormState = {
   refApiKey: "",
   refModel: "",
   secondModel: "",
+  allowNative: false,
 };
 
-const PROTOCOL_ITEMS = [
-  { value: "auto", label: "自动识别" },
-  { value: "chat", label: "OpenAI Chat Completions" },
-  { value: "responses", label: "OpenAI Responses" },
-  { value: "messages", label: "Anthropic Messages" },
+const PROTOCOL_ITEMS: { value: ProtocolChoice; label: string; path: string }[] = [
+  { value: "auto", label: "自动识别", path: "先试 Chat，再试 Responses" },
+  { value: "chat", label: "Chat Completions", path: "/v1/chat/completions" },
+  { value: "responses", label: "Responses", path: "/v1/responses" },
+  { value: "messages", label: "Anthropic Messages", path: "/v1/messages" },
 ];
+const PROTOCOL_NAME: Record<Protocol, string> = { chat: "Chat Completions", responses: "Responses", messages: "Anthropic Messages" };
+
+function ProtocolPicker({ value, baseUrl, onChange, disabled }: { value: ProtocolChoice; baseUrl: string; onChange: (v: ProtocolChoice) => void; disabled?: boolean }) {
+  const implied = impliedProtocol(baseUrl);
+  const conflict = implied && value !== "auto" && implied !== value;
+  return (
+    <div className="space-y-2">
+      <Label id="protocol-label">接口协议</Label>
+      <div role="radiogroup" aria-labelledby="protocol-label" className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        {PROTOCOL_ITEMS.map((item) => {
+          const active = value === item.value;
+          return (
+            <button
+              key={item.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={disabled}
+              onClick={() => onChange(item.value)}
+              className={cn(
+                "rounded-lg border px-2.5 py-2 text-left transition-colors disabled:opacity-50",
+                active ? "border-primary bg-primary/10 ring-1 ring-primary" : "hover:border-foreground/30",
+              )}
+            >
+              <span className={cn("block text-sm font-medium", active && "text-primary")}>{item.label}</span>
+              <span className="block truncate font-mono text-[11px] text-muted-foreground">{item.path}</span>
+            </button>
+          );
+        })}
+      </div>
+      {conflict ? (
+        <p className="text-xs text-destructive">
+          Base URL 以 {PROTOCOL_PATH[implied]} 结尾，与所选 {PROTOCOL_NAME[value as Protocol]} 冲突，请改为根地址或 /v1，或切换协议。
+        </p>
+      ) : value === "auto" ? (
+        <p className="text-xs text-muted-foreground">
+          {implied
+            ? `Base URL 指向 ${PROTOCOL_PATH[implied]}，将直接使用 ${PROTOCOL_NAME[implied]}，不再探测其他协议。`
+            : "按 Chat → Responses → Messages 顺序探测（Claude 优先 Messages），GPT 渠道通常落在 Chat。需要固定协议时请直接选择。"}
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          已锁定 {PROTOCOL_PATH[value]}：指纹、问答、动画题和成分检测都只发这一种请求，失败也不会回退到其他协议；不适用的成分用例会标注跳过。
+        </p>
+      )}
+    </div>
+  );
+}
 const EFFORT_ITEMS = [
   { value: "default", label: "不指定（使用渠道默认）" },
   ...["none", "minimal", "low", "medium", "high", "xhigh"].map((v) => ({ value: v, label: v })),
@@ -306,7 +357,7 @@ export function ConfigForm({
         )}
       </div>
 
-      <Pick label="接口协议（指纹 / 降智检测）" items={PROTOCOL_ITEMS} value={form.protocol} onChange={(v) => set("protocol", v as ProtocolChoice)} disabled={running} />
+      <ProtocolPicker value={form.protocol} baseUrl={form.baseUrl} onChange={(v) => set("protocol", v)} disabled={running} />
 
       <div className="space-y-3 rounded-lg border p-3">
         <ToggleRow id="fp" label="模型指纹" hint="3 道随机整数挑战 + 自报身份" checked={form.fingerprint} onChange={(v) => set("fingerprint", v)} disabled={running} />
@@ -320,6 +371,16 @@ export function ConfigForm({
           <Pick label="渠道类型" items={VENDOR_ITEMS.map((i) => ({ ...i, label: i.value === "auto" ? i.label : catalog?.labels[i.value as Vendor] ?? i.label }))} value={form.vendor} onChange={(v) => set("vendor", v as Vendor | "auto")} disabled={running} />
           <Pick label={`评分模式${modeRelevant ? "" : "（仅对 GLM / Kimi / DeepSeek 生效）"}`} items={MODE_ITEMS} value={form.mode} onChange={(v) => set("mode", v as Mode)} disabled={running} />
           <CaseChecklist catalog={catalog} selected={form.selected} onChange={(next) => set("selected", next)} mode={form.mode} focus={vendors.length ? vendors : ["claude"]} disabled={running} />
+          {form.protocol !== "auto" && (
+            <ToggleRow
+              id="native"
+              label="允许厂商原生协议（跨协议）"
+              hint={form.allowNative ? "成分检测可调用 Messages / Gemini / Responses 等原生端点；指纹与降智仍只用所选协议" : `默认关闭：成分检测只发 ${PROTOCOL_PATH[form.protocol]} 请求，其余用例标注跳过`}
+              checked={form.allowNative}
+              onChange={(v) => set("allowNative", v)}
+              disabled={running}
+            />
+          )}
           <Pick label="上下文阶梯档位上限" items={LADDER_ITEMS} value={String(form.ladderMax)} onChange={(v) => set("ladderMax", Number(v))} disabled={running} />
           <div className="space-y-2">
             <Label>对照官方端点（可选）</Label>

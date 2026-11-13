@@ -19,7 +19,7 @@ export const CASES: Record<Vendor, CaseDef[]> = {
 export function caseInfos(): Record<Vendor, CaseInfo[]> {
   const out = {} as Record<Vendor, CaseInfo[]>;
   for (const [v, list] of Object.entries(CASES) as [Vendor, CaseDef[]][]) {
-    out[v] = list.map(({ id, vendor, section, title, weight, officialWeight, tags, desc, needsRef, needsSecond }) => ({
+    out[v] = list.map(({ id, vendor, section, title, weight, officialWeight, tags, desc, needsRef, needsSecond, protocols }) => ({
       id,
       vendor,
       section,
@@ -30,6 +30,7 @@ export function caseInfos(): Record<Vendor, CaseInfo[]> {
       desc,
       needsRef,
       needsSecond,
+      protocols,
     }));
   }
   return out;

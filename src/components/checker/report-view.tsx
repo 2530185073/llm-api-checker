@@ -68,7 +68,7 @@ export function ReportView({ report }: { report: CheckReport }) {
             <p className="text-sm leading-relaxed text-muted-foreground">{report.overall.summary}</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span>目标：{report.target.host}</span>
-              <span>协议：{PROTOCOL_LABEL[report.target.protocol]}{report.protocolDetection.auto ? "（自动识别）" : ""}</span>
+              <span>协议：{PROTOCOL_LABEL[report.target.protocol]}（{{ explicit: "显式选择", url: "按 URL 推断", auto: "自动识别" }[report.protocolDetection.source ?? (report.protocolDetection.auto ? "auto" : "explicit")]}{report.protocolDetection.locked ? "，已锁定" : ""}）</span>
               <span>模型：{report.target.model}</span>
               {report.target.effort && <span>推理强度：{report.target.effort}</span>}
             </div>

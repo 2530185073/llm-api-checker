@@ -260,7 +260,9 @@ export async function runCheck(
     let cfetch = fetchBase;
     if (vendor === "gemini") cfetch = fetchBase.replace(/\/v1$/, "/v1beta");
     const ref = req.ref ? { ...req.ref, fetchBase: vendor === "gemini" ? req.ref.fetchBase.replace(/\/v1$/, "/v1beta") : req.ref.fetchBase } : undefined;
-    const ctx = new Ctx(vendor, options.model, req.mode, options.baseUrl, cfetch, options.apiKey, pool, signal, ref, req.secondModel || undefined);
+    // An auto run that fell through to a later protocol has proven the earlier ones unavailable.
+    const lock = options.protocol !== "auto" ? options.protocol : attempted.length > 1 ? protocol : null;
+    const ctx = new Ctx(vendor, options.model, req.mode, options.baseUrl, cfetch, options.apiKey, pool, signal, ref, req.secondModel || undefined, req.allowNative ? null : lock, lock ?? protocol);
     ctx.state.set("ladderMax", req.ladderMax);
     emit({ type: "stage", stage: "composition", message: `${VENDOR_LABEL[vendor]} 成分检测（${cases.length} 项）`, model: options.model });
     const results = await runCases(ctx, cases, (r) => {
@@ -280,7 +282,7 @@ export async function runCheck(
     startedAt,
     finishedAt: new Date().toISOString(),
     target: { host: displayHost, protocol, model: options.model, effort: options.effort || undefined },
-    protocolDetection: { attempted, chosen: protocol, auto: options.protocol === "auto" },
+    protocolDetection: { attempted, chosen: protocol, auto: options.protocol === "auto", source: options.protocolSource, locked: options.protocol !== "auto" || attempted.length > 1 },
     fingerprint,
     degradation,
     composition,

@@ -414,6 +414,7 @@ export const CLAUDE_CASES = defineCases("claude", [
       if (j.max_tokens && F(c).known && j.max_tokens !== F(c).maxOutput) return warn("输出上限与官方值不符", d);
       return j.id ? info("返回了模型元数据", d) : warn("返回内容不是官方形态", d);
     },
+    { protocols: [] },
   ],
   [
     "cache_ttl",
@@ -822,6 +823,7 @@ export const CLAUDE_CASES = defineCases("claude", [
         `强制 tool_choice ${f.forcedToolChoiceRemoved ? "已移除" : "可用"}，display 默认 ${f.displayDefault}`,
       ]);
     },
+    { protocols: [] },
   ],
   [
     "between_tools",

@@ -20,6 +20,23 @@ export function normalizeBaseUrl(raw: string): string {
   return `${url.origin}${path}`;
 }
 
+/** Protocol named by a pasted endpoint URL (…/chat/completions, …/responses, …/messages), if any. */
+export function impliedProtocol(raw: string): Protocol | null {
+  let path = "";
+  try {
+    const t = raw.trim();
+    path = new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`).pathname.replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
+  if (/\/chat\/completions$/i.test(path)) return "chat";
+  if (/\/responses$/i.test(path)) return "responses";
+  if (/\/messages$/i.test(path)) return "messages";
+  return null;
+}
+
+export const PROTOCOL_PATH: Record<Protocol, string> = { chat: "/chat/completions", responses: "/responses", messages: "/messages" };
+
 export function endpointUrl(baseUrl: string, protocol: Protocol): string {
   const path = protocol === "chat" ? "/chat/completions" : protocol === "responses" ? "/responses" : "/messages";
   return baseUrl + path;

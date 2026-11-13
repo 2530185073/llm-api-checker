@@ -1,6 +1,6 @@
 import { resolveTarget } from "./target";
 import type { CheckOptions, JudgeMode, ProtocolChoice } from "./types";
-import { normalizeBaseUrl } from "./url";
+import { impliedProtocol, normalizeBaseUrl, PROTOCOL_PATH } from "./url";
 import { VISUAL_PRESETS } from "./visual";
 import type { Vendor } from "../composition/types";
 
@@ -55,8 +55,15 @@ export async function parseCheck(body: Record<string, unknown>, requestHost: str
     ladderMax: Math.max(8000, Math.min(1_048_576, Number(comp.ladderMax) || 262_144)),
     ref,
     secondModel: String(comp.secondModel ?? "").trim().slice(0, 200) || undefined,
+    allowNative: comp.allowNative === true,
   };
-  const protocol = PROTOCOLS.includes(body.protocol as ProtocolChoice) ? (body.protocol as ProtocolChoice) : "auto";
+  const chosen = PROTOCOLS.includes(body.protocol as ProtocolChoice) ? (body.protocol as ProtocolChoice) : "auto";
+  const implied = impliedProtocol(String(body.baseUrl ?? ""));
+  if (implied && chosen !== "auto" && implied !== chosen) {
+    throw new Error(`Base URL 指向 ${PROTOCOL_PATH[implied]}，与所选协议 ${PROTOCOL_PATH[chosen]} 冲突；请改用根地址或 /v1，或选择与 URL 一致的协议`);
+  }
+  const protocol: ProtocolChoice = chosen === "auto" && implied ? implied : chosen;
+  const protocolSource: CheckOptions["protocolSource"] = chosen !== "auto" ? "explicit" : implied ? "url" : "auto";
   const judgeMode = JUDGE_MODES.includes(body.judgeMode as JudgeMode) ? (body.judgeMode as JudgeMode) : "answer";
   const effort = EFFORTS.includes(String(body.effort ?? "")) ? String(body.effort ?? "") : "";
   const options: CheckOptions = {
@@ -68,6 +75,7 @@ export async function parseCheck(body: Record<string, unknown>, requestHost: str
     concurrency: Math.max(1, Math.min(16, Math.round(Number(body.concurrency) || 4))),
     composition,
     protocol,
+    protocolSource,
     effort,
     judgeMode,
     fingerprint: body.fingerprint !== false,

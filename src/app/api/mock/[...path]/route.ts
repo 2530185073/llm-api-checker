@@ -8,6 +8,34 @@ import { inputTokens, PERSONAS, personaFor } from "@/lib/mock/upstream";
 
 type Json = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
+/** Per-key request counts by path, so tests can prove which endpoints a run touched. Keys are hashed, never stored. */
+const requestLog = new Map<string, Record<string, number>>();
+const keyId = (key: string) => createHash("sha256").update(key).digest("hex").slice(0, 16);
+function logRequest(key: string, route: string) {
+  if (!key) return;
+  const id = keyId(key);
+  const entry = requestLog.get(id) ?? {};
+  entry[route] = (entry[route] ?? 0) + 1;
+  requestLog.set(id, entry);
+  if (requestLog.size > 2000) requestLog.delete(requestLog.keys().next().value!);
+}
+
+const GENERATION: [RegExp, string][] = [
+  [/^(v1|beta)\/chat\/completions$/, "chat"],
+  [/^v1\/responses$/, "responses"],
+  [/^(v1|anthropic\/v1)\/messages(\/count_tokens)?$/, "messages"],
+  [/^v1beta\/models\/[^:]+:/, "gemini"],
+  [/^beta\/completions$/, "completions"],
+];
+
+/** Demo keys containing only-chat / only-responses emulate channels that expose a single generation endpoint. */
+function restricted(key: string, route: string): Response | null {
+  const only = key.match(/only-(chat|responses)/)?.[1];
+  const wire = GENERATION.find(([re]) => re.test(route))?.[1];
+  if (!only || !wire || wire === only) return null;
+  return err(404, { error: { message: `This channel only serves /v1/${only === "chat" ? "chat/completions" : "responses"}; ${route} is not available.`, type: "invalid_request_error", code: "unsupported_endpoint" } });
+}
+
 function credential(request: Request) {
   const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   return bearer || request.headers.get("x-api-key")?.trim() || request.headers.get("x-goog-api-key")?.trim() || new URL(request.url).searchParams.get("key") || "";
@@ -39,6 +67,10 @@ function malformed(vendor: string | null) {
 export async function GET(request: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const { path } = await params;
   const route = path.join("/");
+  if (route === "_log") {
+    const key = credential(request);
+    return Response.json({ paths: requestLog.get(keyId(key)) ?? {} });
+  }
   if (!credential(request)) return unauthorized(null);
   if (route === "v1/models" || route === "v1beta/models") {
     return Response.json({ object: "list", data: PERSONAS.map((p) => ({ id: p.id, object: "model", created: 1767225600, owned_by: p.ownedBy, ...(p.vendor === "kimi" ? { context_length: p.window, supports_image_in: p.vision, supports_reasoning: true } : {}), ...(p.vendor === "deepseek" && p.honest ? { context_window: p.window, max_output_tokens: 393216 } : {}) })) });
@@ -58,6 +90,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ pat
   const { path } = await params;
   const route = path.join("/");
   const key = credential(request);
+  logRequest(key, route);
+  const blocked = restricted(key, route);
+  if (blocked) return blocked;
   const raw = await request.text();
   let body: Json;
   try {

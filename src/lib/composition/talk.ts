@@ -90,6 +90,53 @@ export async function ask(c: Ctx, o: AskOpts): Promise<Answer> {
       error: r.ok ? null : r.error ?? `HTTP ${r.status}`,
     };
   }
+  if (c.vendor === "openai" && c.preferred === "responses") {
+    const body: Json = {
+      model,
+      input: turns.map((t) => ({ role: t.role, content: t.content })),
+      ...(o.system ? { instructions: o.system } : {}),
+      ...(o.maxTokens ? { max_output_tokens: Math.max(16, o.maxTokens) } : {}),
+      ...(o.stream ? { stream: true } : {}),
+      store: false,
+      ...o.extra,
+    };
+    const r = await c.send({ path: "/responses", body, stream: o.stream, ref: o.ref, timeoutMs: o.timeoutMs });
+    let doc: Json = r.json ?? {};
+    let text = "";
+    let first: number | null = null;
+    let last: number | null = null;
+    if (o.stream && r.events.length) {
+      for (const e of r.events) {
+        const j = e.json;
+        if (!j) continue;
+        if (j.type === "response.output_text.delta" && typeof j.delta === "string") {
+          text += j.delta;
+          first ??= e.t;
+          last = e.t;
+        }
+        if (j.type === "response.completed" || j.type === "response.incomplete") doc = j.response ?? {};
+      }
+    } else {
+      for (const item of doc.output ?? []) for (const part of item.content ?? []) if (part.type === "output_text") text += part.text ?? "";
+    }
+    const u = doc.usage ?? {};
+    return {
+      ok: r.ok,
+      status: r.status,
+      text,
+      reasoning: "",
+      finish: doc.status === "completed" ? "stop" : doc.status === "incomplete" ? "length" : doc.status ?? null,
+      usage: { input: n(u.input_tokens), output: n(u.output_tokens), cached: n(u.input_tokens_details?.cached_tokens), reasoning: n(u.output_tokens_details?.reasoning_tokens) },
+      id: doc.id ?? null,
+      model: doc.model ?? null,
+      resp: r,
+      ttftMs: r.ttftMs,
+      firstDeltaMs: first,
+      lastDeltaMs: last,
+      durationMs: r.durationMs,
+      error: r.ok ? null : r.error ?? `HTTP ${r.status}`,
+    };
+  }
   const msgs = [...(o.system ? [{ role: "system", content: o.system }] : []), ...turns];
   const body: Json = {
     model,

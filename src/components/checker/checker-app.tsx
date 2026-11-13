@@ -108,6 +108,7 @@ export function CheckerApp() {
             selected: f.selected,
             ladderMax: f.ladderMax,
             secondModel: f.secondModel,
+            allowNative: f.protocol !== "auto" && f.allowNative,
             ref: f.refBaseUrl.trim() && f.refApiKey.trim() ? { baseUrl: f.refBaseUrl, apiKey: f.refApiKey, model: f.refModel } : null,
           },
         }),

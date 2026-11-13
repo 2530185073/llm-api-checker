@@ -1,9 +1,11 @@
-import type { Ctx } from "./http";
+import { type Ctx, ProtocolLockError, WIRE_LABEL, type WireProtocol } from "./http";
 import type { CaseInfo, CaseResult, CompositionReport, Flag, Mode, Outcome, Tag, Vendor } from "./types";
 
 export interface CaseDef extends CaseInfo {
   needsRef?: boolean;
   needsSecond?: boolean;
+  /** Generation protocols the case sends; [] means it sends none (auxiliary endpoints or aggregation only). */
+  protocols: WireProtocol[];
   run: (c: Ctx) => Promise<Outcome>;
 }
 
@@ -15,11 +17,13 @@ export type CaseSpec = [
   tags: Tag[],
   desc: string,
   run: (c: Ctx) => Promise<Outcome>,
-  extra?: { officialWeight?: number; needsRef?: boolean; needsSecond?: boolean },
+  extra?: { officialWeight?: number; needsRef?: boolean; needsSecond?: boolean; protocols?: WireProtocol[] },
 ];
 
+const NATIVE: Record<Vendor, WireProtocol[]> = { claude: ["messages"], gemini: ["gemini"], openai: ["chat"], glm: ["chat"], kimi: ["chat"], deepseek: ["chat"] };
+
 export const defineCases = (vendor: Vendor, specs: CaseSpec[]): CaseDef[] =>
-  specs.map(([id, section, title, weight, tags, desc, run, extra]) => ({ id, vendor, section, title, weight, tags, desc, run, ...extra }));
+  specs.map(([id, section, title, weight, tags, desc, run, extra]) => ({ id, vendor, section, title, weight, tags, desc, run, ...extra, protocols: extra?.protocols ?? NATIVE[vendor] }));
 
 /** Vendors whose checklist distinguishes 官方等价 from 要求官方链路. */
 export const MODE_VENDORS: Vendor[] = ["glm", "kimi", "deepseek"];
@@ -69,14 +73,16 @@ export async function runCases(
     const before = c.requests;
     let out: Outcome;
     try {
-      if (d.needsRef && !c.ref) out = { status: "skip", summary: "需要填写对照官方端点" };
+      if (c.lock && d.protocols.length && !d.protocols.includes(c.lock))
+        out = { status: "skip", summary: `仅适用于 ${d.protocols.map((p) => WIRE_LABEL[p]).join(" / ")}；协议已锁定为 ${WIRE_LABEL[c.lock]}，按设置跳过` };
+      else if (d.needsRef && !c.ref) out = { status: "skip", summary: "需要填写对照官方端点" };
       else if (d.needsSecond && !c.secondModel) out = { status: "skip", summary: "未填写第二模型" };
       else {
         c.currentCase = d.id;
         out = await d.run(c);
       }
     } catch (error) {
-      out = { status: "skip", summary: `用例执行异常：${(error as Error).message.slice(0, 200)}` };
+      out = error instanceof ProtocolLockError ? { status: "skip", summary: error.message } : { status: "skip", summary: `用例执行异常：${(error as Error).message.slice(0, 200)}` };
     }
     if (out.precision) c.precision.push({ caseId: d.id, evidence: out.precision });
     const r: CaseResult = {
@@ -98,7 +104,7 @@ export async function runCases(
   const body = cases.filter((d) => !pre.includes(d) && !final.includes(d));
   for (const d of pre) {
     const r = await runOne(d);
-    if (d.id.endsWith("basic") && r.status === "fail") {
+    if (d.id.endsWith("basic") && r.status === "fail" && !(c.lock && d.protocols.length && !d.protocols.includes(c.lock))) {
       for (const rest of [...body, ...final]) {
         const s: CaseResult = { id: rest.id, title: rest.title, section: rest.section, weight: effectiveWeight(rest, c.mode, c.vendor), tags: rest.tags, status: "skip", summary: "基础对话失败，跳过", durationMs: 0, requests: 0 };
         results.push(s);
@@ -143,6 +149,12 @@ export function summarize(c: Ctx, results: CaseResult[]): CompositionReport {
       verdict = "fake";
       verdictText = "多数特征与官方不符";
     }
+  }
+  const lockedOut = results.filter((r) => r.status === "skip" && r.summary.includes("协议已锁定为"));
+  const lockedWeight = lockedOut.reduce((sum, r) => sum + Math.max(r.weight, 0), 0);
+  if (c.lock && lockedOut.length && verdict !== "fake" && lockedWeight > den) {
+    verdict = "unknown";
+    verdictText = `协议已锁定为 ${WIRE_LABEL[c.lock]}，${lockedOut.length} 项用例不适用被跳过，剩余证据不足以判定；可在成分检测设置中开启「允许厂商原生协议」`;
   }
   return {
     vendor: c.vendor,

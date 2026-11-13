@@ -1,5 +1,29 @@
 import { redact } from "../checker/url";
+import type { Protocol } from "../checker/types";
 import type { Mode, RefEndpoint, Vendor } from "./types";
+
+export type WireProtocol = Protocol | "gemini" | "completions";
+
+export const WIRE_LABEL: Record<WireProtocol, string> = {
+  chat: "Chat Completions（/v1/chat/completions）",
+  responses: "Responses（/v1/responses）",
+  messages: "Anthropic Messages（/v1/messages）",
+  gemini: "Gemini generateContent",
+  completions: "FIM（/beta/completions）",
+};
+
+/** Generation protocol a request path belongs to; auxiliary endpoints (/models, balance, tokenizer…) return null. */
+export function wireOf(path: string): WireProtocol | null {
+  const p = path.replace(/[?#].*$/, "");
+  if (/:(generateContent|streamGenerateContent|countTokens)$/.test(p)) return "gemini";
+  if (/\/chat\/completions$/.test(p)) return "chat";
+  if (/\/responses$/.test(p)) return "responses";
+  if (/\/messages(\/count_tokens)?$/.test(p)) return "messages";
+  if (/\/completions$/.test(p)) return "completions";
+  return null;
+}
+
+export class ProtocolLockError extends Error {}
 
 type Json = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -71,6 +95,10 @@ export class Ctx {
     readonly signal: AbortSignal | undefined,
     readonly ref?: RefEndpoint,
     readonly secondModel?: string,
+    /** Explicitly selected protocol that every generation request must use; null when not enforced. */
+    readonly lock: Protocol | null = null,
+    /** Protocol generic checks should speak (the explicit selection, even when native requests are opted in). */
+    readonly preferred: Protocol | null = null,
   ) {}
 
   get official() {
@@ -96,6 +124,10 @@ export class Ctx {
   }
 
   async send(opts: SendOpts): Promise<Resp> {
+    const wire = wireOf(opts.path);
+    if (this.lock && wire && wire !== this.lock) {
+      throw new ProtocolLockError(`协议已锁定为 ${WIRE_LABEL[this.lock]}，拒绝发送 ${WIRE_LABEL[wire]} 请求`);
+    }
     return this.limiter(() => this.rawSend(opts));
   }
 
