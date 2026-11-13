@@ -6,7 +6,7 @@
 2. **渠道成分报告**：按厂商（Claude / OpenAI / Gemini / GLM / Kimi / DeepSeek）运行协议保真、流式语法、usage 计费算术、参数校验、思考与工具、上下文阶梯、分词器指纹、身份与注入检测等用例，给出加权「成分得分」、关键问题标记与结论。
 3. **降智报告**：8 道带标准答案的问答题 + 22 道 HTML/SVG 动画题（结果在页面上直接渲染预览），可每题重复 N 次，给出通过率、平均 / P95 耗时与标准差，以及加权“智力得分”。
 
-指纹与降智检测支持 OpenAI **Chat Completions**、OpenAI **Responses**、Anthropic **Messages** 三种协议（可自动识别）；成分检测按厂商使用各自的原生协议（Gemini 为 `generateContent`）。界面为简体中文，适配手机。
+支持 OpenAI **Chat Completions**（`/v1/chat/completions`）、OpenAI **Responses**（`/v1/responses`）、Anthropic **Messages**（`/v1/messages`）三种协议，可自动识别也可显式锁定（见下文「接口协议」）。界面为简体中文，适配手机。
 
 > 没有 Key 也能体验：页面上点击「使用演示端点」，会使用内置的模拟上游 `/api/mock/v1`。它包含 6 家厂商的正常渠道（`claude-sonnet-4.6`、`gpt-5.4`、`gemini-3.6-flash`、`glm-5.3`、`kimi-k3`、`deepseek-flash`）与两个掺假渠道：`claude-opus-4.8`（OpenAI 格式转换 + Claude Code 逆向 + 降智，实际是另一家模型）和 `deepseek-v4-pro`（低精度量化的自部署后端，实际是另一个模型、窗口只有 128K、usage 不完整）。
 
@@ -51,6 +51,18 @@ docker compose up -d
 - API Key（含可选的对照官方 Key）只放在发往本服务后端的请求体里，由后端在本次检测期间转发给对应接口（`Authorization: Bearer`，Messages 协议同时带 `x-api-key`，Gemini 带 `x-goog-api-key`），**不写日志、不落盘、不回传**；进度流和报告中出现的 Key 会被替换为 `[REDACTED]`。
 - 后端代理可以避开浏览器的跨域限制，但也意味着服务端会访问任意 URL：生产模式默认拒绝内网 / 回环地址，且不跟随重定向。
 - 指纹 + 降智默认约 27 次请求；渠道成分检测按清单不同约 150–400 次请求，其中上下文阶梯会发送数十万 token 的长请求（可用「上下文阶梯档位上限」控制），重复次数与模型数会成倍放大请求量。这些都会产生真实费用，可在清单里按需取消。
+
+## 接口协议
+
+表单顶部的「接口协议」有四个选项：
+
+- **自动识别**（默认）：按 Chat → Responses → Messages 的顺序各发一条最短请求探测（模型名像 Claude 时 Messages 优先），用第一个可用的协议跑指纹与降智检测。GPT 渠道通常落在 Chat。成分检测按厂商原生协议进行；若探测时前面的协议不可用（例如渠道只开放 `/v1/responses`），成分检测也会锁定到探测出的协议。
+- **Chat Completions / Responses / Anthropic Messages**（显式选择）：全程锁定所选端点。指纹、分词器探测、问答题、动画题和成分检测都只发这一种生成请求，失败时直接报错，**不会回退或改用其他协议**。成分检测中只适用于其他协议的用例（如 OpenAI 的 `n`、`stop`、`json_schema` 属于 Chat；`previous_response_id`、内置 `web_search` 属于 Responses；Claude / Gemini 原生用例、DeepSeek 的 Anthropic 格式与 FIM）会标注「仅适用于 …；协议已锁定为 …，按设置跳过」。两种协议都有的 OpenAI 用例（基础对话、developer 角色、多轮、TTFT / 吞吐、ID 格式、usage 明细、图片、推理强度、身份与一致性等）会按所选协议发送。跳过项过多导致证据不足时，结论为「无法判定」而不是「官方」。
+- 需要在固定协议的同时跑厂商原生用例，可在成分检测设置里打开「允许厂商原生协议（跨协议）」。它只影响成分检测，指纹与降智检测仍只用所选协议。
+
+**Base URL 规范化**：只写到域名（`https://api.example.com`）时补 `/v1`；写到 `/v1` 原样使用；粘贴完整端点（`…/v1/chat/completions`、`…/v1/responses`、`…/v1/messages`）时去掉端点后缀，并且：自动识别模式下直接使用该端点对应的协议并锁定（报告显示「按 URL 推断」）；显式选择了不同协议时拒绝开始并提示冲突。
+
+演示端点支持用 Key 模拟单协议渠道：Key 中包含 `only-chat` 时除 `/v1/chat/completions` 外的生成端点都返回 404，包含 `only-responses` 时只开放 `/v1/responses`。`GET /api/mock/_log`（带同一个 Key）返回该 Key 按路径统计的请求次数（Key 只以哈希形式驻留内存），可用来确认检测没有发出其他协议的请求。
 
 ## 多模型、重复与并发
 
