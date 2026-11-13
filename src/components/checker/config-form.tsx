@@ -107,7 +107,7 @@ function ProtocolPicker({ value, baseUrl, onChange, disabled }: { value: Protoco
   return (
     <div className="space-y-2">
       <Label id="protocol-label">接口协议</Label>
-      <div role="radiogroup" aria-labelledby="protocol-label" className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+      <div role="radiogroup" aria-labelledby="protocol-label" className="grid grid-cols-2 gap-1.5">
         {PROTOCOL_ITEMS.map((item) => {
           const active = value === item.value;
           return (
