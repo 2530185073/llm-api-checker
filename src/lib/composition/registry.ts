@@ -38,6 +38,10 @@ export const DEFAULT_CASE_IDS: Record<Vendor, string[]> = {
     "bill_base",
     "bill_nocache",
     "bill_nonstream",
+    "bill_ladder",
+    "bill_types",
+    "bill_ttl1h",
+    "bill_agent",
     "bill_summary",
   ],
   openai: [
