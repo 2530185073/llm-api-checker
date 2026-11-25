@@ -49,26 +49,26 @@ function CaseRow({ r }: { r: CaseResult }) {
   const hasMore = !!r.details?.length;
   return (
     <li>
-      <button type="button" className={cn("flex w-full gap-2.5 px-3 py-2 text-left", hasMore && "hover:bg-muted/30")} onClick={() => hasMore && setOpen((v) => !v)}>
+      <button type="button" className={cn("flex w-full gap-2.5 px-3.5 py-2.5 text-left", hasMore && "hover:bg-muted/30")} onClick={() => hasMore && setOpen((v) => !v)}>
         <StatusIcon s={r.status} />
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-medium">{r.title}</span>
-            <span className="text-[11px] text-muted-foreground">{r.weight > 0 ? `权重 ${r.weight}` : "不计分"}</span>
+            <span className="text-[15px] font-medium">{r.title}</span>
+            <span className="text-[13px] text-muted-foreground">{r.weight > 0 ? `权重 ${r.weight}` : "不计分"}</span>
             {r.tags.includes("critical") && (
-              <Badge variant="destructive" className="text-[10px]">
+              <Badge variant="destructive" className="text-xs">
                 关键
               </Badge>
             )}
             {r.flags?.map((f) => (
-              <Badge key={f} variant="outline" className="border-red-500/30 text-[10px] text-red-600 dark:text-red-400">
+              <Badge key={f} variant="outline" className="border-red-500/30 text-xs text-red-600 dark:text-red-400">
                 {FLAG_LABEL[f]}
               </Badge>
             ))}
           </span>
-          <span className="block text-xs text-muted-foreground">{r.summary}</span>
+          <span className="mt-0.5 block text-sm leading-relaxed text-muted-foreground">{r.summary}</span>
         </span>
-        <span className="hidden shrink-0 text-right text-[11px] tabular-nums text-muted-foreground sm:block">
+        <span className="hidden shrink-0 text-right text-[13px] tabular-nums text-muted-foreground sm:block">
           {r.requests} 次请求
           <br />
           {ms(r.durationMs)}
@@ -76,7 +76,7 @@ function CaseRow({ r }: { r: CaseResult }) {
         {hasMore && <ChevronDown className={cn("mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />}
       </button>
       {open && (
-        <ul className="mx-3 mb-2 space-y-0.5 rounded-md bg-muted/40 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+        <ul className="mx-3.5 mb-2.5 space-y-1 rounded-md bg-muted/40 p-2.5 font-mono text-[13px] leading-relaxed text-muted-foreground">
           {r.details!.map((d, i) => (
             <li key={i} className="break-all whitespace-pre-wrap">
               {d}
@@ -121,8 +121,8 @@ export function CompositionCard({ c }: { c: CompositionReport }) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <ScoreRing score={c.score} tone={tone} size={96} label="成分得分" />
           <div className="space-y-2">
-            <p className="text-sm font-medium">{c.verdictText}</p>
-            <div className="flex flex-wrap gap-3 text-sm">
+            <p className="text-[15px] font-medium">{c.verdictText}</p>
+            <div className="flex flex-wrap gap-3 text-[15px]">
               <span className="text-emerald-600">通过 {c.passed}</span>
               <span className="text-amber-600">警告 {c.warned}</span>
               <span className="text-red-500">失败 {c.failed}</span>
@@ -140,17 +140,17 @@ export function CompositionCard({ c }: { c: CompositionReport }) {
             )}
           </div>
         </div>
-        <div className="flex gap-1 rounded-md border p-0.5 text-xs w-fit">
+        <div className="flex gap-1 rounded-md border p-1 text-sm w-fit">
           {(["issues", "all"] as const).map((k) => (
-            <button key={k} type="button" onClick={() => setFilter(k)} className={cn("rounded px-2.5 py-1", filter === k ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
+            <button key={k} type="button" onClick={() => setFilter(k)} className={cn("rounded px-3 py-1 font-medium", filter === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
               {k === "issues" ? `只看问题（${c.failed + c.warned}）` : `全部用例（${c.cases.length}）`}
             </button>
           ))}
         </div>
-        {sections.length === 0 && <p className="text-sm text-muted-foreground">没有警告或失败的用例。</p>}
+        {sections.length === 0 && <p className="text-[15px] text-muted-foreground">没有警告或失败的用例。</p>}
         {sections.map((s) => (
-          <div key={s.name} className="space-y-1">
-            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{s.name}</h4>
+          <div key={s.name} className="space-y-1.5">
+            <h4 className="text-sm font-semibold text-muted-foreground">{s.name}</h4>
             <ul className="divide-y rounded-lg border">
               {s.items.map((r) => (
                 <CaseRow key={r.id} r={r} />

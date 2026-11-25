@@ -6,7 +6,7 @@
 2. **渠道成分报告**：按厂商（Claude / OpenAI / Gemini / GLM / Kimi / DeepSeek）运行协议保真、流式语法、usage 计费算术、参数校验、思考与工具、上下文阶梯、分词器指纹、身份与注入检测等用例，给出加权「成分得分」、关键问题标记与结论。
 3. **降智报告**：8 道带标准答案的问答题 + 22 道 HTML/SVG 动画题（结果在页面上直接渲染预览），可每题重复 N 次，给出通过率、平均 / P95 耗时与标准差，以及加权“智力得分”。
 
-支持 OpenAI **Chat Completions**（`/v1/chat/completions`）、OpenAI **Responses**（`/v1/responses`）、Anthropic **Messages**（`/v1/messages`）三种协议，可自动识别也可显式锁定（见下文「接口协议」）。界面为简体中文，适配手机。
+支持 OpenAI **Chat Completions**（`/v1/chat/completions`）、OpenAI **Responses**（`/v1/responses`）、Anthropic **Messages**（`/v1/messages`）与 **Gemini Native**（`/v1beta/models/{model}:generateContent` / `:streamGenerateContent?alt=sse`）四种协议，可自动识别也可显式锁定（见下文「接口协议」）。界面为简体中文，适配手机。
 
 > 没有 Key 也能体验：页面上点击「使用演示端点」，会使用内置的模拟上游 `/api/mock/v1`。它包含 6 家厂商的正常渠道（`claude-sonnet-4.6`、`gpt-5.4`、`gemini-3.6-flash`、`glm-5.3`、`kimi-k3`、`deepseek-flash`）与两个掺假渠道：`claude-opus-4.8`（OpenAI 格式转换 + Claude Code 逆向 + 降智，实际是另一家模型）和 `deepseek-v4-pro`（低精度量化的自部署后端，实际是另一个模型、窗口只有 128K、usage 不完整）。
 
@@ -44,6 +44,7 @@ docker compose up -d
 | `ALLOW_PRIVATE_TARGETS` | 开发模式允许，生产模式禁止 | 设为 `1` 允许检测 localhost / 内网地址（例如本机的 one-api、new-api）。公网部署建议保持禁止，避免被当作 SSRF 跳板 |
 | `MAX_CONCURRENT_CHECKS` | `4` | 单实例同时进行的检测任务上限（一次多模型检测算一个任务） |
 | `LMFPD_CACHE` | `/tmp/lmfpd/data.bin` | 参考数据缓存文件 |
+| `LMFPD_TTL_SEC` | `86400`（24 小时） | 参考数据自动刷新间隔（秒），到期后自动后台更新并在进程内重载 |
 | `LMFPD_DATA_SOURCE` | 空 | 参考数据来源；可填镜像 URL（以 `/` 结尾）或本地数据目录（完全离线） |
 
 ## 隐私与安全
@@ -54,15 +55,15 @@ docker compose up -d
 
 ## 接口协议
 
-表单顶部的「接口协议」有四个选项：
+表单顶部的「接口协议」有五个选项：
 
-- **自动识别**（默认）：按 Chat → Responses → Messages 的顺序各发一条最短请求探测（模型名像 Claude 时 Messages 优先），用第一个可用的协议跑指纹与降智检测。GPT 渠道通常落在 Chat。成分检测按厂商原生协议进行；若探测时前面的协议不可用（例如渠道只开放 `/v1/responses`），成分检测也会锁定到探测出的协议。
-- **Chat Completions / Responses / Anthropic Messages**（显式选择）：全程锁定所选端点。指纹、分词器探测、问答题、动画题和成分检测都只发这一种生成请求，失败时直接报错，**不会回退或改用其他协议**。成分检测中只适用于其他协议的用例（如 OpenAI 的 `n`、`stop`、`json_schema` 属于 Chat；`previous_response_id`、内置 `web_search` 属于 Responses；Claude / Gemini 原生用例、DeepSeek 的 Anthropic 格式与 FIM）会标注「仅适用于 …；协议已锁定为 …，按设置跳过」。两种协议都有的 OpenAI 用例（基础对话、developer 角色、多轮、TTFT / 吞吐、ID 格式、usage 明细、图片、推理强度、身份与一致性等）会按所选协议发送。跳过项过多导致证据不足时，结论为「无法判定」而不是「官方」。
+- **自动识别**（默认）：按模型名自动选择探测顺序（Claude 优先 Messages，Gemini 优先 generateContent，其余按 Chat → Responses → Messages → Gemini 顺序各发一条最短请求），用第一个可用的协议跑指纹与降智检测。成分检测按厂商原生协议进行；若探测时前面的协议不可用（例如渠道只开放 `/v1/responses` 或 `/v1beta/models/{model}:generateContent`），成分检测也会锁定到探测出的协议。
+- **Chat Completions / Responses / Anthropic Messages / Gemini Native**（显式选择）：全程锁定所选端点。指纹、分词器探测、问答题、动画题和成分检测都只发这一种生成请求，失败时直接报错，**不会回退或改用其他协议**。Gemini 原生协议会自动将 `/v1` 映射为 `/v1beta`、使用 `x-goog-api-key` 鉴权（遇到 `AIza...` 官方密钥时自动不附带 `Authorization: Bearer`）。成分检测中只适用于其他协议的用例会标注「仅适用于 …；协议已锁定为 …，按设置跳过」。跳过项过多导致证据不足时，结论为「无法判定」而不是「官方」。
 - 需要在固定协议的同时跑厂商原生用例，可在成分检测设置里打开「允许厂商原生协议（跨协议）」。它只影响成分检测，指纹与降智检测仍只用所选协议。
 
-**Base URL 规范化**：只写到域名（`https://api.example.com`）时补 `/v1`；写到 `/v1` 原样使用；粘贴完整端点（`…/v1/chat/completions`、`…/v1/responses`、`…/v1/messages`）时去掉端点后缀，并且：自动识别模式下直接使用该端点对应的协议并锁定（报告显示「按 URL 推断」）；显式选择了不同协议时拒绝开始并提示冲突。
+**Base URL 规范化**：只写到域名（`https://api.example.com`）时补 `/v1`（Gemini 原生请求自动转为 `/v1beta`）；写到 `/v1` 或 `/v1beta` 原样使用；粘贴完整端点（`…/v1/chat/completions`、`…/v1/responses`、`…/v1/messages`、`…/v1beta/models/{model}:generateContent`）时去掉端点后缀，并且：自动识别模式下直接使用该端点对应的协议并锁定（报告显示「按 URL 推断」）；显式选择了不同协议时拒绝开始并提示冲突。
 
-演示端点支持用 Key 模拟单协议渠道：Key 中包含 `only-chat` 时除 `/v1/chat/completions` 外的生成端点都返回 404，包含 `only-responses` 时只开放 `/v1/responses`。`GET /api/mock/_log`（带同一个 Key）返回该 Key 按路径统计的请求次数（Key 只以哈希形式驻留内存），可用来确认检测没有发出其他协议的请求。
+演示端点支持用 Key 模拟单协议渠道：Key 中包含 `only-chat`、`only-responses`、`only-messages` 或 `only-gemini` 时仅开放对应生成端点，其余返回 404。`GET /api/mock/_log`（带同一个 Key）返回该 Key 按路径统计的请求次数（Key 只以哈希形式驻留内存），可用来确认检测没有发出其他协议的请求。
 
 ## 多模型、重复与并发
 
@@ -101,7 +102,7 @@ docker compose up -d
 
 ### 模型指纹
 
-- **数字指纹**（依赖 npm 包 `lmfpd-sdk` 及其运行时下载的参考数据）：随机生成 3 道挑战，要求模型凭第一反应写出约 300 个 1–355 的整数（中 / 英 / 日 / 韩 / 法随机措辞，禁止工具和规则化序列）。语言模型的“随机数”并不均匀，每个模型偏好的数值、区间、末位数字相对稳定；检测器把数值分布（Hellinger 嵌入）、位置分段与末位分布、位置核、序列特征与参考库中 69 个模型对比，用 LDA / 近邻 / 去干扰中心的组合排名，并用温度 softmax 给出**参考库内**置信度。先做“序列形态检查”（lag-1 自相关、小步长占比），排除程序生成的数字。
+- **数字指纹**（依赖 npm 包 `lmfpd-sdk` 下载参考数据，并同步上游 `Ikaleio/lm-detector` 最新评分逻辑）：随机生成 3 道挑战，要求模型凭第一反应写出约 300 个 1–355 的整数（中 / 英 / 日 / 韩 / 法随机措辞，禁止工具和规则化序列）。语言模型的“随机数”并不均匀，每个模型偏好的数值、区间、末位数字相对稳定；检测器把数值分布（Hellinger 嵌入）、位置分段与末位分布、位置核、序列特征与参考库模型（当前 75 个，按 TTL 自动刷新）对比，用 LDA / 近邻 / 去干扰中心的组合排名，并用温度 softmax 给出**参考库内**置信度。先做“序列形态检查”（lag-1 自相关、小步长占比与 1–3 步近邻对占比，兼容 GPT-6.2 等弱相邻信号模型），排除程序生成的数字。
 - **分词器探测**：差分计数 + 贝叶斯开集判定。每个探针只发 `前缀 + 测试文本 + 后缀`，用 `usage` 中输入 token 数减去只含前后缀的对照请求，抵消聊天模板与隐藏系统提示；按成对 Bhattacharyya 上界自适应挑选探针（最多 12 条），在 62 类开源分词器与“未收录”之间判定，再与所填模型的官方分词器（如 OpenAI 新模型为 o200k_base）核对。
 - **响应元数据**：响应中的 `model` 字段、响应 ID 格式（`chatcmpl-` / `resp_` / `msg_` / `gen-`）、`system_fingerprint`、部分响应头。
 - **自报身份**：询问“你是哪个模型”，只作弱证据。
@@ -115,7 +116,7 @@ docker compose up -d
 | 检测 | 内容 |
 | --- | --- |
 | **问答题**（自动判分） | 8 道有标准答案的题目，比较最终可见答案与耗时 |
-| **HTML/SVG 动画题** | 12 道内置题：鹈鹕骑自行车（默认）、北极熊骑自行车、奥特曼骑摩托车、章鱼打架子鼓、长颈鹿踩滑板、宇航猫月球钓鱼、模拟时钟、太阳系轨道、弹跳小球物理、齿轮传动、城市夜景视差、汉字笔顺；报告中沙箱预览 + 自动检查 + 人工目测要点 |
+| **HTML/SVG 动画题** | 22 道内置题：鹈鹕骑自行车（默认）、北极熊骑自行车、奥特曼骑摩托车、章鱼打架子鼓、长颈鹿踩滑板、宇航猫月球钓鱼、模拟时钟、太阳系轨道、弹跳小球物理、齿轮传动、城市夜景视差、汉字笔顺、灯塔夜巡、牛顿摆、蜂鸟采蜜、风车农场日落、火箭发射、海底水族箱、心电监护仪、十字路口红绿灯、折纸鹤、DNA 双螺旋；报告中沙箱预览 + 自动检查 + 人工目测要点 |
 | **Grok 思考证据** | 所填模型含 grok 时生效：有可见输出但全程没有思考内容即视为降智；不信任 usage 中虚报的 reasoning_tokens |
 
 **问答题**：答案先做 Unicode NFKC 标准化、去首尾空白和包裹整个答案的单层代码围栏，再按 `exact` / `contains` / `regex` 判定；判定方式可选 `answer`（只看答案，默认）、`latency`（耗时严格小于题目阈值）、`both`；状态分为正常 / 未通过 / 请求失败，**请求失败不计为答错**。
@@ -146,8 +147,6 @@ docker compose up -d
 | 体积合理（2 KB – 512 KB） | 1 |
 | 不引用外部资源 | 1 |
 
-除上表 12 道题外，另有 10 道动画题：灯塔夜巡、牛顿摆、蜂鸟采蜜、风车农场日落、火箭发射、海底水族箱、心电监护仪、十字路口红绿灯、折纸鹤、DNA 双螺旋，同样带主题关键词检查。
-
 动画题的耗时阈值为 180 秒（仅在 `latency` / `both` 判定方式下计入），超时上限可选 10 / 20 / 30 分钟；Messages 协议下 `max_tokens` 为 32768（被拒时自动降到 8192）。鹈鹕题权重 2，其余动画题权重 1。
 
 **智力得分** = 通过题目权重之和 ÷ 有效题目权重之和 × 100；≥ 85 为正常，60–85 为疑似降智，< 60 为明显降智；有效题目权重不足一半时为“无法判断”。额外信号：响应模型名与请求不一致、多次请求返回不同模型、请求了推理强度却没有推理 token、推理 token 只出现在用量里、输出被截断、长文本题输入 token 异常偏少。
@@ -170,7 +169,8 @@ src/lib/checker/run.ts              协议识别、并发调度、重复执行�
 src/lib/composition/                渠道成分检测：用例引擎、各协议请求、通用用例与 OpenAI 兼容用例库
 src/lib/composition/cases/          各厂商用例清单（claude / openai / gemini / glm / kimi / deepseek）
 src/lib/mock/                       演示上游：各厂商协议与参数规则、正常与掺假渠道
-src/app/api/cases/route.ts          用例清单接口
+src/app/api/cases/route.ts          用例清单与参考库元数据接口
+src/lib/vendor/lmfpd/               上游数字指纹解码与评分模块（含 GPT-6.2 序列形态修复）
 src/lib/vendor/tokenizer/           分词器后验模块
 src/data/tokenizer_bank.json        分词器库
 mock/fingerprint-fixtures.json      演示用指纹样本

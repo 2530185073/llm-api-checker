@@ -30,17 +30,17 @@ function StepList({ steps }: { steps: StepState[] }) {
         const running = list.filter((s) => s.state === "running");
         const recent = [...running, ...list.filter((s) => s.state !== "running").slice(-4)].slice(0, 8);
         return (
-          <div key={group} className="space-y-1.5">
-            <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <div key={group} className="space-y-2">
+            <h4 className="text-sm font-semibold text-muted-foreground">
               {GROUPS[group]} <span className="tabular-nums">{list.filter((s) => s.state !== "running").length}/{list.length}</span>
             </h4>
-            <ul className="space-y-1">
+            <ul className="space-y-1.5">
               {recent.map((s) => (
-                <li key={s.key} className="flex items-start gap-2 text-sm">
+                <li key={s.key} className="flex items-start gap-2 text-[15px]">
                   {s.state === "running" ? <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary" /> : s.state === "done" ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" /> : <XCircle className="mt-0.5 size-4 shrink-0 text-red-500" />}
                   <span className="min-w-0 flex-1">
                     <span className={cn(s.state === "running" && "text-muted-foreground")}>{s.label}</span>
-                    {s.detail && <span className="block truncate text-xs text-muted-foreground">{s.detail}</span>}
+                    {s.detail && <span className="block truncate text-[13px] text-muted-foreground">{s.detail}</span>}
                   </span>
                 </li>
               ))}
@@ -49,7 +49,7 @@ function StepList({ steps }: { steps: StepState[] }) {
         );
       })}
       {!groups.length && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-[15px] text-muted-foreground">
           <CircleDashed className="size-4" /> 正在连接目标接口…
         </div>
       )}
@@ -64,7 +64,7 @@ export function ProgressPanel({ steps, expected, elapsed, stage, models, doneMod
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3 text-sm">
+        <div className="flex items-center justify-between gap-3 text-[15px]">
           <span className="flex min-w-0 items-center gap-2 font-medium">
             <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
             <span className="truncate">{stage || "准备中"}</span>
@@ -74,7 +74,7 @@ export function ProgressPanel({ steps, expected, elapsed, stage, models, doneMod
           </span>
         </div>
         <Progress value={value} />
-        <p className="text-xs text-muted-foreground">长上下文、重复次数与多模型会显著延长检测时间，请保持页面打开。</p>
+        <p className="text-[13px] text-muted-foreground">长上下文、重复次数与多模型会显著延长检测时间，请保持页面打开。</p>
       </div>
       {multi ? (
         <div className="space-y-4">
@@ -82,11 +82,11 @@ export function ProgressPanel({ steps, expected, elapsed, stage, models, doneMod
             const own = steps.filter((s) => s.model === m);
             const done = doneModels.includes(m);
             return (
-              <details key={m} className="rounded-lg border p-3" open={models.length <= 3}>
-                <summary className="flex cursor-pointer items-center gap-2 text-sm">
+              <details key={m} className="rounded-lg border p-3.5" open={models.length <= 3}>
+                <summary className="flex cursor-pointer items-center gap-2 text-[15px]">
                   {done ? <CheckCircle2 className="size-4 text-emerald-600" /> : <Loader2 className="size-4 animate-spin text-primary" />}
                   <span className="font-mono">{m}</span>
-                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">{own.filter((s) => s.state !== "running").length} 步完成</span>
+                  <span className="ml-auto text-[13px] tabular-nums text-muted-foreground">{own.filter((s) => s.state !== "running").length} 步完成</span>
                 </summary>
                 <div className="pt-3">
                   <StepList steps={own} />

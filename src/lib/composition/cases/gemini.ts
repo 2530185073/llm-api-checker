@@ -179,7 +179,7 @@ export const GEMINI_CASES = defineCases("gemini", [
     if (typeof a !== "number" || typeof b !== "number") return warn("计数缺失", d);
     return Math.abs(b - a) <= 1 + F(c).hiddenPrefix ? ok("计数一致", d) : fail("计数差异过大（估算 usage 或注入提示）", d, { flags: ["injected_prompt"] });
   }],
-  ["short_prompt", "身份/成分", "极短输入的 promptTokenCount（注入检测）", 2, [], "只发「Say hi.」：Gemini 3.x 应为个位数，Argon 带固定隐藏前缀；多出几十上百说明中转注入了系统提示。", async (c) => {
+  ["short_prompt", "身份/成分", "极短输入的 promptTokenCount（注入检测）", 2, [], "只发「Say hi.」：Gemini 3.x 应为个位数，Gemini 4（Argon / Carbon / Hydrogen / Neon）带固定隐藏前缀；多出几十上百说明中转注入了系统提示。", async (c) => {
     const r = await call(c, g(c, "Say hi."));
     const n = r.usage?.promptTokenCount ?? 0;
     const base = F(c).hiddenPrefix;

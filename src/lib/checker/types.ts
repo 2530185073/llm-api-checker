@@ -1,4 +1,4 @@
-export type Protocol = "chat" | "responses" | "messages";
+export type Protocol = "chat" | "responses" | "messages" | "gemini";
 export type ProtocolChoice = Protocol | "auto";
 export type JudgeMode = "answer" | "latency" | "both";
 
@@ -119,7 +119,7 @@ export interface FingerprintReport {
   claimSummary: string;
   confidence: number | null;
   samples: FingerprintSample[];
-  sequence: { autocorrelation: number; smallStepShare: number; modelLike: boolean } | null;
+  sequence: { autocorrelation: number; smallStepShare: number; nearbyPairShare?: number; modelLike: boolean } | null;
   tokenizer: TokenizerSummary | null;
   selfReport: string | null;
   evidence: Evidence[];

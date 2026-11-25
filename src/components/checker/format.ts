@@ -4,6 +4,7 @@ export const PROTOCOL_LABEL: Record<Protocol, string> = {
   chat: "OpenAI Chat Completions",
   responses: "OpenAI Responses",
   messages: "Anthropic Messages",
+  gemini: "Gemini generateContent",
 };
 
 export const CLAIM_LABEL: Record<ClaimStatus, { text: string; tone: Tone }> = {

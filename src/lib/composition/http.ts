@@ -2,7 +2,7 @@ import { redact } from "../checker/url";
 import type { Protocol } from "../checker/types";
 import type { Mode, RefEndpoint, Vendor } from "./types";
 
-export type WireProtocol = Protocol | "gemini" | "completions";
+export type WireProtocol = Protocol | "completions";
 
 export const WIRE_LABEL: Record<WireProtocol, string> = {
   chat: "Chat Completions（/v1/chat/completions）",
@@ -113,7 +113,7 @@ export class Ctx {
     if (opts.noAuth) return {};
     const key = opts.bearer ?? (opts.ref ? this.ref!.apiKey : this.apiKey);
     if (this.vendor === "claude") return { "x-api-key": key, Authorization: `Bearer ${key}`, "anthropic-version": "2023-06-01" };
-    if (this.vendor === "gemini") return { "x-goog-api-key": key, Authorization: `Bearer ${key}` };
+    if (this.vendor === "gemini") return /^AIza/.test(key) ? { "x-goog-api-key": key } : { "x-goog-api-key": key, Authorization: `Bearer ${key}` };
     return { Authorization: `Bearer ${key}` };
   }
 

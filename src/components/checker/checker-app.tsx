@@ -1,23 +1,28 @@
 "use client";
 
-import { Activity, Brain, Fingerprint, Layers, ShieldAlert } from "lucide-react";
+import { Brain, ChevronDown, Fingerprint, FlaskConical, Layers, Play, Plug, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import type { DetectorMeta } from "@/lib/checker/fingerprint";
 import type { MultiReport, ProgressEvent } from "@/lib/checker/types";
 import { detectVendor } from "@/lib/composition/facts";
 import type { Vendor } from "@/lib/composition/types";
 import { cn } from "@/lib/utils";
 import type { CaseCatalog } from "./case-checklist";
 import { ComparisonMatrix } from "./comparison-matrix";
-import { ConfigForm, INITIAL_FORM, type FormState } from "./config-form";
+import { ConfigForm, DEMO_MODELS, INITIAL_FORM, type FormState } from "./config-form";
 import { ProgressPanel, type StepState } from "./progress-panel";
 import { ReportView } from "./report-view";
 
-export function CheckerApp() {
+export function CheckerApp({ initialCatalog = null, initialMeta }: { initialCatalog?: CaseCatalog | null; initialMeta?: DetectorMeta }) {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
-  const [catalog, setCatalog] = useState<CaseCatalog | null>(null);
+  const [available, setAvailable] = useState<string[]>([]);
+  const [catalog, setCatalog] = useState<CaseCatalog | null>(initialCatalog);
+  const [meta, setMeta] = useState<DetectorMeta>(initialMeta ?? { modelCount: 75, builtAt: null });
+  const [configOpen, setConfigOpen] = useState(true);
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState<StepState[]>([]);
   const [stage, setStage] = useState("");
@@ -33,9 +38,14 @@ export function CheckerApp() {
   useEffect(() => {
     fetch("/api/cases")
       .then((r) => r.json())
-      .then((d: CaseCatalog) => setCatalog(d))
-      .catch(() => toast.error("用例清单加载失败"));
-  }, []);
+      .then((d: CaseCatalog & { detector?: DetectorMeta }) => {
+        if (!initialCatalog) setCatalog(d);
+        if (d.detector) setMeta(d.detector);
+      })
+      .catch(() => {
+        if (!initialCatalog) toast.error("用例清单加载失败");
+      });
+  }, [initialCatalog]);
 
   useEffect(() => {
     if (!running) return;
@@ -49,6 +59,20 @@ export function CheckerApp() {
     return (form.fingerprint ? 4 + (form.tokenizer ? 1 : 0) : 0) + (form.degradation ? 8 + form.visualPresets.length : 0) + comp;
   };
   const expected = form.models.reduce((s, m) => s + perModel(m), 0);
+
+  function applyDemo() {
+    setForm((prev) => ({
+      ...prev,
+      baseUrl: `${window.location.origin}/api/mock/v1`,
+      apiKey: "sk-demo",
+      models: ["claude-opus-4.8", "claude-sonnet-4.6", "deepseek-v4-pro"],
+      protocol: "auto",
+      composition: true,
+    }));
+    setAvailable(DEMO_MODELS);
+    setConfigOpen(true);
+    toast.info("已填入演示端点：claude-opus-4.8 与 deepseek-v4-pro 为掺假渠道，其余 6 个为正常渠道");
+  }
 
   function handle(event: ProgressEvent) {
     if (event.type === "stage") setStage(event.model ? `${event.model} · ${event.message}` : event.message);
@@ -68,6 +92,7 @@ export function CheckerApp() {
     } else if (event.type === "result") {
       setReport(event.report);
       setActive(event.report.reports.length > 1 ? null : event.report.reports[0]?.target.model ?? null);
+      setConfigOpen(false);
     } else if (event.type === "error") setError(event.message);
   }
 
@@ -75,6 +100,7 @@ export function CheckerApp() {
     const controller = new AbortController();
     abortRef.current = controller;
     setRunning(true);
+    setConfigOpen(false);
     setSteps([]);
     setDoneModels([]);
     setStage("正在连接");
@@ -121,125 +147,207 @@ export function CheckerApp() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      for (;;) {
-        const { done, value } = await reader.read();
-        buffer += decoder.decode(value, { stream: !done });
-        let newline: number;
-        while ((newline = buffer.indexOf("\n")) >= 0) {
-          const line = buffer.slice(0, newline).trim();
-          buffer = buffer.slice(newline + 1);
-          if (line) handle(JSON.parse(line) as ProgressEvent);
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          buffer += decoder.decode(value, { stream: !done });
+          let newline: number;
+          while ((newline = buffer.indexOf("\n")) >= 0) {
+            const line = buffer.slice(0, newline).trim();
+            buffer = buffer.slice(newline + 1);
+            if (line) handle(JSON.parse(line) as ProgressEvent);
+          }
+          if (done) break;
         }
-        if (done) break;
+      } finally {
+        reader.releaseLock();
       }
     } catch (err) {
       if (controller.signal.aborted) toast.info("检测已停止");
-      else setError((err as Error).message || "检测失败");
+      else {
+        setError((err as Error).message || "检测失败");
+        setConfigOpen(true);
+      }
     } finally {
       setRunning(false);
       abortRef.current = null;
-      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     }
   }
 
   const reports = report?.reports ?? [];
   const shown = reports.find((r) => r.target.model === active);
+  const totalCases = catalog ? Object.values(catalog.cases).reduce((s, arr) => s + arr.length, 0) : 301;
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6 sm:px-6 lg:py-10">
-      <header className="mb-6 flex flex-col gap-2 sm:mb-8">
-        <div className="flex items-center gap-2 text-sm font-medium text-primary">
-          <ShieldAlert className="size-4" /> LLM API 鉴真
+    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 lg:py-8">
+      {/* Compact Header */}
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <ShieldAlert className="size-4" />
+            <span>LLM API 鉴真</span>
+            <span className="text-muted-foreground/50">·</span>
+            <span className="font-normal text-muted-foreground">Claude / OpenAI / Gemini / GLM / Kimi / DeepSeek</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">验证 API 背后的真实模型、渠道成分与是否降智</h1>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">这个 API 背后真的是你买的模型吗？</h1>
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-          填入中转站或第三方接口的 Base URL 与 Key，可一次选多个模型并排对比：<b className="text-foreground">模型指纹</b>（实际模型是谁）、<b className="text-foreground">渠道成分</b>（协议、计费、参数校验与身份是否像官方）与{" "}
-          <b className="text-foreground">降智报告</b>（推理能力、上下文、延迟是否缩水）。支持 Claude、OpenAI、Gemini、GLM、Kimi、DeepSeek。
-        </p>
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+          <span className="rounded-full border bg-card px-3 py-1">
+            指纹库 <b className="font-semibold text-foreground">{meta.modelCount}</b> 模型
+            {meta.builtAt ? ` · ${meta.builtAt.slice(0, 10)}` : ""}
+          </span>
+        </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
-        <Card className="h-fit lg:sticky lg:top-6">
-          <CardHeader>
-            <CardTitle>检测配置</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ConfigForm form={form} setForm={setForm} running={running} onStart={start} onCancel={() => abortRef.current?.abort()} catalog={catalog} />
-          </CardContent>
-        </Card>
-
-        <div ref={resultRef} className="min-w-0 scroll-mt-4 space-y-5">
-          {error && (
-            <Alert variant="destructive">
-              <AlertTitle>检测未完成</AlertTitle>
-              <AlertDescription className="whitespace-pre-wrap break-all">{error}</AlertDescription>
-            </Alert>
-          )}
-          {running && (
-            <Card>
-              <CardContent>
-                <ProgressPanel steps={steps} expected={expected} elapsed={now - startedAt} stage={stage} models={form.models} doneModels={doneModels} />
-              </CardContent>
-            </Card>
-          )}
-          {report && reports.length > 1 && <ComparisonMatrix report={report} onPick={(m) => setActive(m)} />}
-          {report && reports.length > 1 && (
-            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="模型详细报告">
-              <button type="button" role="tab" aria-selected={active === null} onClick={() => setActive(null)} className={cn("rounded-full border px-3 py-1 text-xs", active === null ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground")}>
-                只看对比
-              </button>
-              {reports.map((r) => (
-                <button
-                  key={r.target.model}
-                  type="button"
-                  role="tab"
-                  aria-selected={active === r.target.model}
-                  onClick={() => setActive(r.target.model)}
-                  className={cn("rounded-full border px-3 py-1 font-mono text-xs", active === r.target.model ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
-                >
-                  {r.target.model}
-                </button>
-              ))}
+      {/* Top Config Workbench (or compact summary bar when running / viewing results) */}
+      <Card>
+        {!configOpen && (running || report) ? (
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <span className="font-medium text-foreground">{report?.host || form.baseUrl}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="font-mono text-[13px] text-muted-foreground">
+                {form.models.length <= 3 ? form.models.join(", ") : `${form.models.slice(0, 2).join(", ")} 等 ${form.models.length} 个模型`}
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">协议：{form.protocol === "auto" ? "自动识别" : form.protocol}</span>
             </div>
-          )}
-          {shown && <ReportView key={shown.target.model} report={shown} />}
-          {report && !reports.length && (
-            <Alert variant="destructive">
-              <AlertTitle>所有模型都检测失败</AlertTitle>
-              <AlertDescription>{report.errors.map((e) => `${e.model}：${e.message}`).join("\n")}</AlertDescription>
-            </Alert>
-          )}
-          {!running && !report && !error && <EmptyState />}
-        </div>
-      </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setConfigOpen(true)}>
+                <SlidersHorizontal className="size-4" /> 修改配置
+              </Button>
+              {!running && (
+                <Button type="button" size="sm" onClick={start}>
+                  <Play className="size-4" /> 重新检测
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        ) : (
+          <CardContent className="space-y-2">
+            {report && (
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-sm font-semibold text-foreground">检测配置</span>
+                <button
+                  type="button"
+                  onClick={() => setConfigOpen(false)}
+                  className="inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+                >
+                  收起配置 <ChevronDown className="size-4 rotate-180" />
+                </button>
+              </div>
+            )}
+            <ConfigForm
+              form={form}
+              setForm={setForm}
+              running={running}
+              onStart={start}
+              onCancel={() => abortRef.current?.abort()}
+              onDemo={applyDemo}
+              catalog={catalog}
+              available={available}
+              setAvailable={setAvailable}
+            />
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Main Results / Progress / Compact Overview */}
+      <main ref={resultRef} className="min-w-0 space-y-5">
+        {error && (
+          <Alert variant="destructive">
+            <AlertTitle>检测未完成</AlertTitle>
+            <AlertDescription className="whitespace-pre-wrap break-all">{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {running && (
+          <Card>
+            <CardContent>
+              <ProgressPanel steps={steps} expected={expected} elapsed={now - startedAt} stage={stage} models={form.models} doneModels={doneModels} />
+            </CardContent>
+          </Card>
+        )}
+
+        {report && reports.length > 1 && (
+          <div className="space-y-4">
+            <ComparisonMatrix report={report} activeModel={active} onPick={(m) => setActive(m === active ? null : m)} />
+            {shown && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="切换模型详细报告">
+                    {reports.map((r) => (
+                      <button
+                        key={r.target.model}
+                        type="button"
+                        role="tab"
+                        aria-selected={active === r.target.model}
+                        onClick={() => setActive(r.target.model)}
+                        className={cn(
+                          "rounded-full border px-3.5 py-1.5 font-mono text-sm transition-colors",
+                          active === r.target.model ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {r.target.model}
+                      </button>
+                    ))}
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setActive(null)}>
+                    收起详情
+                  </Button>
+                </div>
+                <ReportView key={shown.target.model} report={shown} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {report && reports.length === 1 && shown && <ReportView key={shown.target.model} report={shown} />}
+
+        {report && !reports.length && (
+          <Alert variant="destructive">
+            <AlertTitle>所有模型都检测失败</AlertTitle>
+            <AlertDescription>{report.errors.map((e) => `${e.model}：${e.message}`).join("\n")}</AlertDescription>
+          </Alert>
+        )}
+
+        {!running && !report && !error && <EmptyOverview meta={meta} totalCases={totalCases} onDemo={applyDemo} />}
+      </main>
     </div>
   );
 }
 
-function EmptyState() {
-  const items = [
-    { icon: Fingerprint, title: "数字指纹", text: "让模型凭第一反应写约 300 个 1–355 的整数，与 69 个模型的参考库比对，排出最可能的实际模型。" },
-    { icon: Layers, title: "渠道成分", text: "按厂商运行协议保真、usage 计费算术、参数校验、思考与工具、上下文阶梯、分词器指纹等用例，支持官方等价 / 要求官方链路两种评分。" },
-    { icon: Brain, title: "降智检测", text: "8 道有标准答案的问答题与 22 道 HTML/SVG 动画题（结果可直接预览），可重复 N 次统计通过率与 P95 延迟。" },
-    { icon: Activity, title: "多模型对比", text: "一次选择多个模型，共享并发上限同时检测，结果以对比矩阵并排展示，再逐个下钻查看。" },
+function EmptyOverview({ meta, totalCases, onDemo }: { meta: DetectorMeta; totalCases: number; onDemo: () => void }) {
+  const highlights = [
+    { icon: Fingerprint, stat: `${meta.modelCount} 个参考模型`, title: "数字指纹 + 分词器", desc: "识别中转站背后真实模型，揪出套壳掉包" },
+    { icon: Layers, stat: `6 家 · ${totalCases} 用例`, title: "渠道成分核验", desc: "协议保真、usage 计费算术、参数与注入检测" },
+    { icon: Brain, stat: "8 问答 + 22 动画", title: "降智与耗时评估", desc: "客观推理题 + 沙箱动画渲染，支持重复测 P95" },
+    { icon: Plug, stat: "4 大原生协议", title: "Chat / Responses / Messages / Gemini", desc: "自动探测或强制锁定，绝不偷偷回退协议" },
   ];
+
   return (
-    <Card className="border-dashed">
-      <CardContent className="space-y-5 py-2">
-        <div>
-          <h3 className="font-medium">检测会做什么</h3>
-          <p className="mt-1 text-sm text-muted-foreground">没有可用的 Key？点击左侧“使用演示端点”，内置的模拟上游包含 6 家厂商的正常渠道与两个掺假渠道。</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {items.map(({ icon: Icon, title, text }) => (
-            <div key={title} className="rounded-lg border bg-muted/20 p-4">
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {highlights.map(({ icon: Icon, stat, title, desc }) => (
+          <div key={title} className="rounded-xl border bg-card p-4">
+            <div className="flex items-center justify-between gap-2">
               <Icon className="size-5 text-primary" />
-              <div className="mt-2 text-sm font-medium">{title}</div>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{text}</p>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">{stat}</span>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            <div className="mt-3 text-[15px] font-semibold text-foreground">{title}</div>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed bg-card/60 px-5 py-3.5">
+        <p className="text-sm text-muted-foreground">
+          手头没有 Key？内置模拟上游包含 <b className="font-medium text-foreground">6 家正常渠道</b> 与 <b className="font-medium text-foreground">2 个掺假渠道</b>，可一键跑通全套报告。
+        </p>
+        <Button type="button" variant="secondary" size="sm" onClick={onDemo}>
+          <FlaskConical className="size-4" /> 一键填入演示端点
+        </Button>
+      </div>
+    </div>
   );
 }

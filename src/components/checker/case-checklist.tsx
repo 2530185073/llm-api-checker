@@ -61,11 +61,11 @@ export function CaseChecklist({
 
   return (
     <Dialog>
-      <DialogTrigger render={<Button type="button" variant="outline" size="sm" className="w-full justify-between" disabled={disabled || !catalog} />}>
+      <DialogTrigger render={<Button type="button" variant="outline" className="h-10 w-full justify-between text-sm" disabled={disabled || !catalog} />}>
         <span className="inline-flex items-center gap-1.5">
           <ListChecks className="size-4" /> 用例清单
         </span>
-        <span className="truncate text-xs text-muted-foreground">{catalog ? summary || "选择模型后显示" : "加载中…"}</span>
+        <span className="truncate text-[13px] text-muted-foreground">{catalog ? summary || "选择模型后显示" : "加载中…"}</span>
       </DialogTrigger>
       <DialogContent className="flex max-h-[88vh] flex-col gap-3 sm:max-w-3xl">
         <DialogHeader>
@@ -79,11 +79,11 @@ export function CaseChecklist({
               type="button"
               onClick={() => setVendor(v)}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs transition-colors",
+                "rounded-full border px-3.5 py-1.5 text-sm transition-colors",
                 vendor === v ? "border-primary bg-primary text-primary-foreground" : focus.includes(v) ? "border-primary/40 text-foreground" : "text-muted-foreground",
               )}
             >
-              {catalog?.labels[v]?.split("（")[0] ?? v} <span className="tabular-nums opacity-80">{current(v).length}/{catalog?.cases[v]?.length ?? 0}</span>
+              {catalog?.labels[v]?.split("（")[0] ?? v} <span className="tabular-nums opacity-85">{current(v).length}/{catalog?.cases[v]?.length ?? 0}</span>
             </button>
           ))}
         </div>
@@ -97,7 +97,7 @@ export function CaseChecklist({
           <Button type="button" size="sm" variant="secondary" onClick={() => setFor([])}>
             全不选
           </Button>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             已选 {sel.size} / {list.length}
           </span>
         </div>
@@ -107,43 +107,43 @@ export function CaseChecklist({
             const all = ids.every((id) => sel.has(id));
             return (
               <div key={s.name} className="mb-4">
-                <div className="sticky top-0 z-10 flex items-center justify-between bg-popover py-1.5">
-                  <h4 className="text-sm font-medium">{s.name}</h4>
-                  <button type="button" className="text-xs text-primary hover:underline" onClick={() => setFor(all ? [...sel].filter((x) => !ids.includes(x)) : [...new Set([...sel, ...ids])])}>
+                <div className="sticky top-0 z-10 flex items-center justify-between bg-popover py-2">
+                  <h4 className="text-[15px] font-semibold">{s.name}</h4>
+                  <button type="button" className="text-[13px] font-medium text-primary hover:underline" onClick={() => setFor(all ? [...sel].filter((x) => !ids.includes(x)) : [...new Set([...sel, ...ids])])}>
                     {all ? "本组全不选" : "本组全选"}
                   </button>
                 </div>
                 <ul className="space-y-1">
                   {s.items.map((c, i) => (
                     <li key={c.id}>
-                      <label className="flex cursor-pointer gap-2.5 rounded-md p-2 hover:bg-muted/50">
-                        <Checkbox checked={sel.has(c.id)} onCheckedChange={() => toggle(c.id)} className="mt-0.5" />
+                      <label className="flex cursor-pointer gap-2.5 rounded-md p-2.5 hover:bg-muted/50">
+                        <Checkbox checked={sel.has(c.id)} onCheckedChange={() => toggle(c.id)} className="mt-1" />
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-xs tabular-nums text-muted-foreground">{list.indexOf(c) + 1 || i + 1}.</span>
-                            <span className="text-sm font-medium">{c.title}</span>
-                            <Badge variant="outline" className="text-[10px]">
+                            <span className="text-[13px] tabular-nums text-muted-foreground">{list.indexOf(c) + 1 || i + 1}.</span>
+                            <span className="text-[15px] font-medium">{c.title}</span>
+                            <Badge variant="outline" className="text-xs">
                               {weightLabel(c, mode, vendor)}
                             </Badge>
                             {c.tags
                               .filter((t) => t !== "ref" && t !== "unscored")
                               .map((t) => (
-                                <Badge key={t} variant={t === "critical" ? "destructive" : "secondary"} className="text-[10px]">
+                                <Badge key={t} variant={t === "critical" ? "destructive" : "secondary"} className="text-xs">
                                   {TAG_TEXT[t]}
                                 </Badge>
                               ))}
                             {vendor === "openai" && c.protocols?.length === 1 && (
-                              <Badge variant="outline" className="font-mono text-[10px]">
+                              <Badge variant="outline" className="font-mono text-xs">
                                 仅 {c.protocols[0] === "chat" ? "/chat/completions" : "/responses"}
                               </Badge>
                             )}
                             {c.needsRef && (
-                              <Badge variant="secondary" className="text-[10px]">
+                              <Badge variant="secondary" className="text-xs">
                                 需对照端点
                               </Badge>
                             )}
                           </span>
-                          <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{c.desc}</span>
+                          <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">{c.desc}</span>
                         </span>
                       </label>
                     </li>

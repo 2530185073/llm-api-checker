@@ -35,25 +35,25 @@ export function VisualPreview({ artifact, name, compact = false }: { artifact: V
           <button
             type="button"
             onClick={() => setView("preview")}
-            className={cn("inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs", view === "preview" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+            className={cn("inline-flex items-center gap-1 rounded px-3 py-1.5 text-sm", view === "preview" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
           >
-            <Eye className="size-3.5" /> 动画预览
+            <Eye className="size-4" /> 动画预览
           </button>
           <button
             type="button"
             onClick={() => setView("source")}
-            className={cn("inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs", view === "source" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+            className={cn("inline-flex items-center gap-1 rounded px-3 py-1.5 text-sm", view === "source" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
           >
-            <Code2 className="size-3.5" /> HTML 源码
+            <Code2 className="size-4" /> HTML 源码
           </button>
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={() => setNonce((n) => n + 1)} disabled={!artifact.html}>
-          <RotateCcw className="size-3.5" /> 重新播放
+          <RotateCcw className="size-4" /> 重新播放
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={download} disabled={!artifact.html}>
-          <Download className="size-3.5" /> 下载 HTML
+          <Download className="size-4" /> 下载 HTML
         </Button>
-        {!compact && <span className="ml-auto text-xs text-muted-foreground">隔离沙箱 · 仅加载内联内容</span>}
+        {!compact && <span className="ml-auto text-[13px] text-muted-foreground">隔离沙箱 · 仅加载内联内容</span>}
       </div>
       {view === "preview" ? (
         artifact.html ? (
@@ -66,23 +66,23 @@ export function VisualPreview({ artifact, name, compact = false }: { artifact: V
             className={cn("w-full rounded-lg border bg-white", compact ? "h-[200px] sm:h-[240px]" : "h-[300px] sm:h-[420px]")}
           />
         ) : (
-          <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">未提取到 HTML，无法预览</div>
+          <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-[15px] text-muted-foreground">未提取到 HTML，无法预览</div>
         )
       ) : (
-        <pre className="max-h-[420px] overflow-auto rounded-lg border bg-muted/40 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all">
+        <pre className="max-h-[420px] overflow-auto rounded-lg border bg-muted/40 p-3.5 font-mono text-[13px] leading-relaxed whitespace-pre-wrap break-all">
           {artifact.html || "（空）"}
         </pre>
       )}
       <div className={cn("grid gap-3", compact ? "hidden" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]")}>
-        <div className="rounded-lg border p-3">
-          <div className="mb-2 flex items-center justify-between text-xs font-medium">
+        <div className="rounded-lg border p-3.5">
+          <div className="mb-2 flex items-center justify-between text-sm font-semibold">
             <span>自动检查</span>
             <span className="tabular-nums text-muted-foreground">{artifact.autoScore} / 100</span>
           </div>
           <ul className="space-y-1.5">
             {artifact.checks.map((c) => (
-              <li key={c.key} className="flex gap-2 text-xs">
-                {c.passed ? <CircleCheck className="mt-px size-3.5 shrink-0 text-emerald-600" /> : <CircleX className="mt-px size-3.5 shrink-0 text-red-500" />}
+              <li key={c.key} className="flex gap-2 text-[13px] leading-relaxed">
+                {c.passed ? <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" /> : <CircleX className="mt-0.5 size-4 shrink-0 text-red-500" />}
                 <span className="min-w-0">
                   <span className="font-medium">{c.label}</span>
                   <span className="text-muted-foreground"> · {c.detail}</span>
@@ -91,9 +91,9 @@ export function VisualPreview({ artifact, name, compact = false }: { artifact: V
             ))}
           </ul>
         </div>
-        <div className="rounded-lg border border-dashed p-3">
-          <div className="mb-2 text-xs font-medium">人工目测要点</div>
-          <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+        <div className="rounded-lg border border-dashed p-3.5">
+          <div className="mb-2 text-sm font-semibold">人工目测要点</div>
+          <ul className="list-disc space-y-1.5 pl-4 text-[13px] leading-relaxed text-muted-foreground">
             {REVIEW_CRITERIA.map((c) => (
               <li key={c}>{c}</li>
             ))}

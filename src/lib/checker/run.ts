@@ -42,13 +42,16 @@ export function limiter(max: number): Limiter {
 }
 
 function protocolOrder(model: string): Protocol[] {
-  return /claude|anthropic/i.test(model) ? ["messages", "chat", "responses"] : ["chat", "responses", "messages"];
+  if (/claude|anthropic/i.test(model)) return ["messages", "chat", "responses"];
+  if (/gemini|gemma/i.test(model)) return ["gemini", "chat", "responses"];
+  return ["chat", "responses", "messages", "gemini"];
 }
 
 const PROTOCOL_NAMES: Record<Protocol, string> = {
   chat: "OpenAI Chat Completions",
   responses: "OpenAI Responses",
   messages: "Anthropic Messages",
+  gemini: "Gemini generateContent",
 };
 
 export async function detectProtocol(
@@ -155,7 +158,7 @@ export async function runCheck(
       if (!options.tokenizer) return null;
       emit({ type: "step", group: "tokenizer", id: "tokenizer", label: "分词器探测（差分计数）", state: "running" });
       const summary = await runTokenizerProbe(options.model, (prompt) =>
-        send(prompt, { maxTokens: protocol === "messages" ? 16 : undefined, noEffort: protocol === "messages" }),
+        send(prompt, { maxTokens: protocol === "messages" ? 16 : undefined, noEffort: protocol === "messages" || protocol === "gemini" }),
       );
       emit({
         type: "step",

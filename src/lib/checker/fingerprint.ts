@@ -1,19 +1,157 @@
-import { generateChallenges, loadDetector, parseNumbers, type Analysis, type Detector } from "lmfpd-sdk";
+import { readFile, stat } from "node:fs/promises";
+import { join } from "node:path";
+import { generateChallenges, loadDetector, parseNumbers, type Detector } from "lmfpd-sdk";
+import { decodeDetector } from "../vendor/lmfpd/detector-codec";
+import { analyzeSharedOutputs, supportsSharedDetector, type SharedDetector } from "../vendor/lmfpd/shared-detector";
+import type { Analysis, Bank, Output } from "../vendor/lmfpd/types";
 import { normalizeModelId } from "./model-id";
 import type { CallResult, Candidate, ClaimStatus, Evidence, FingerprintReport, FingerprintSample, TokenizerSummary } from "./types";
 
-let detectorPromise: Promise<Detector> | null = null;
+const DEFAULT_TTL_SEC = 86_400;
+const FALLBACK_MODEL_COUNT = 75;
 
-export function getDetector(): Promise<Detector> {
-  if (!detectorPromise) {
-    const source = process.env.LMFPD_DATA_SOURCE;
-    const cache = process.env.LMFPD_CACHE || "/tmp/lmfpd/data.bin";
-    detectorPromise = loadDetector(source ? { source } : { cache, ttl: 7 * 86400 }).catch((error) => {
-      detectorPromise = null;
-      throw error;
+export interface LoadedDetector {
+  builtAt: string;
+  modelCount: number;
+  analyze(outputs: Output[], options?: { strict?: boolean }): Analysis;
+}
+
+export interface DetectorMeta {
+  modelCount: number;
+  builtAt: string | null;
+}
+
+interface CacheState {
+  loaded: LoadedDetector;
+  loadedAt: number;
+  fileMtimeMs: number | null;
+}
+
+let cachedState: CacheState | null = null;
+let inflight: Promise<LoadedDetector> | null = null;
+
+function detectorConfig() {
+  const source = process.env.LMFPD_DATA_SOURCE?.trim() || undefined;
+  const cache = process.env.LMFPD_CACHE || "/tmp/lmfpd/data.bin";
+  const ttlSec = Math.max(60, Number(process.env.LMFPD_TTL_SEC) || DEFAULT_TTL_SEC);
+  const isLocalDir = !!source && !/^https?:\/\//i.test(source);
+  return { source, cache, ttlSec, isLocalDir };
+}
+
+function wrapShared(bank: Bank, artifact: SharedDetector): LoadedDetector {
+  return {
+    builtAt: bank.built_at,
+    modelCount: bank.models.length,
+    analyze(outputs, options) {
+      const result = analyzeSharedOutputs(outputs, bank, artifact, { allowPartial: !(options?.strict ?? false) });
+      return { ...result, decision: result.decision ?? "scored" };
+    },
+  };
+}
+
+function wrapSdk(sdk: Detector): LoadedDetector {
+  return {
+    builtAt: sdk.builtAt,
+    modelCount: FALLBACK_MODEL_COUNT,
+    analyze(outputs, options) {
+      return sdk.analyze(outputs, options) as unknown as Analysis;
+    },
+  };
+}
+
+async function readSharedFromCache(cachePath: string): Promise<{ loaded: LoadedDetector; mtimeMs: number } | null> {
+  try {
+    const [bytes, info] = await Promise.all([readFile(/*turbopackIgnore: true*/ cachePath), stat(/*turbopackIgnore: true*/ cachePath)]);
+    const headerLen = bytes.readUInt32LE(0);
+    const bank = JSON.parse(new TextDecoder().decode(bytes.subarray(4, 4 + headerLen))) as Bank;
+    const artifact = decodeDetector(bytes.subarray(4 + headerLen));
+    if (!Array.isArray(bank?.models) || !supportsSharedDetector(bank, artifact)) return null;
+    return { loaded: wrapShared(bank, artifact), mtimeMs: info.mtimeMs };
+  } catch {
+    return null;
+  }
+}
+
+async function readSharedFromDir(dir: string): Promise<LoadedDetector | null> {
+  try {
+    const [bankBytes, detectorBytes] = await Promise.all([
+      readFile(/*turbopackIgnore: true*/ join(dir, "unified_bank.json")),
+      readFile(/*turbopackIgnore: true*/ join(dir, "shared_detector.bin")),
+    ]);
+    const bank = JSON.parse(new TextDecoder().decode(bankBytes)) as Bank;
+    const artifact = decodeDetector(detectorBytes);
+    if (!Array.isArray(bank?.models) || !supportsSharedDetector(bank, artifact)) return null;
+    return wrapShared(bank, artifact);
+  } catch {
+    return null;
+  }
+}
+
+async function loadFreshDetector(): Promise<LoadedDetector> {
+  const { source, cache, ttlSec, isLocalDir } = detectorConfig();
+  if (isLocalDir && source) {
+    const local = await readSharedFromDir(source);
+    if (local) {
+      cachedState = { loaded: local, loadedAt: Date.now(), fileMtimeMs: null };
+      return local;
+    }
+    const sdk = await loadDetector({ source });
+    const loaded = wrapSdk(sdk);
+    cachedState = { loaded, loadedAt: Date.now(), fileMtimeMs: null };
+    return loaded;
+  }
+  const sdk = await loadDetector(source ? { source, cache, ttl: ttlSec } : { cache, ttl: ttlSec });
+  const fromCache = await readSharedFromCache(cache);
+  if (fromCache) {
+    cachedState = { loaded: fromCache.loaded, loadedAt: Date.now(), fileMtimeMs: fromCache.mtimeMs };
+    return fromCache.loaded;
+  }
+  const loaded = wrapSdk(sdk);
+  cachedState = { loaded, loadedAt: Date.now(), fileMtimeMs: null };
+  return loaded;
+}
+
+export async function getDetector(): Promise<LoadedDetector> {
+  const { cache, ttlSec, isLocalDir } = detectorConfig();
+  if (cachedState) {
+    const expired = Date.now() - cachedState.loadedAt >= ttlSec * 1000;
+    if (!expired) {
+      if (!isLocalDir && cachedState.fileMtimeMs !== null) {
+        const info = await stat(/*turbopackIgnore: true*/ cache).catch(() => null);
+        if (!info || info.mtimeMs === cachedState.fileMtimeMs) return cachedState.loaded;
+      } else {
+        return cachedState.loaded;
+      }
+    }
+  }
+  if (!inflight) {
+    inflight = loadFreshDetector().finally(() => {
+      inflight = null;
     });
   }
-  return detectorPromise;
+  return inflight;
+}
+
+/** Fast non-blocking metadata lookup for UI display (reads cached header without downloading). */
+export async function getDetectorMeta(): Promise<DetectorMeta> {
+  if (cachedState) {
+    return { modelCount: cachedState.loaded.modelCount, builtAt: cachedState.loaded.builtAt };
+  }
+  const { source, cache, isLocalDir } = detectorConfig();
+  try {
+    if (isLocalDir && source) {
+      const bank = JSON.parse(await readFile(/*turbopackIgnore: true*/ join(source, "unified_bank.json"), "utf8")) as Bank;
+      if (Array.isArray(bank?.models)) return { modelCount: bank.models.length, builtAt: bank.built_at ?? null };
+    } else {
+      const bytes = await readFile(/*turbopackIgnore: true*/ cache);
+      const headerLen = bytes.readUInt32LE(0);
+      const bank = JSON.parse(new TextDecoder().decode(bytes.subarray(4, 4 + headerLen))) as Bank;
+      if (Array.isArray(bank?.models)) return { modelCount: bank.models.length, builtAt: bank.built_at ?? null };
+    }
+  } catch {
+    // Cache not yet prefetched; fall back to known upstream count until first load.
+  }
+  return { modelCount: FALLBACK_MODEL_COUNT, builtAt: null };
 }
 
 export const fingerprintChallenges = () => generateChallenges(3);
@@ -113,7 +251,7 @@ export function buildFingerprintReport(input: {
       label: "数字指纹",
       value: "回答不像语言模型生成",
       signal: "against",
-      detail: "相邻数字的自相关和小步长占比不符合语言模型的特征，可能是程序生成或缓存回放的内容。",
+      detail: "相邻数字的自相关、小步长占比与 1–3 步近邻对占比不符合语言模型的特征，可能是程序生成或缓存回放的内容。",
     });
   } else {
     evidence.push({
@@ -126,12 +264,15 @@ export function buildFingerprintReport(input: {
   }
 
   if (analysis?.sequence) {
+    const nearby = typeof analysis.sequence.nearby_pair_share === "number"
+      ? `，1–3 步近邻占比 ${(analysis.sequence.nearby_pair_share * 100).toFixed(1)}%`
+      : "";
     evidence.push({
       key: "sequence",
       label: "序列形态检查",
       value: analysis.sequence.model_like ? "像语言模型的回答" : "不像语言模型的回答",
       signal: analysis.sequence.model_like ? "neutral" : "against",
-      detail: `lag-1 自相关 ${analysis.sequence.autocorrelation.toFixed(3)}，小步长占比 ${(analysis.sequence.small_step_share * 100).toFixed(1)}%`,
+      detail: `lag-1 自相关 ${analysis.sequence.autocorrelation.toFixed(3)}，小步长占比 ${(analysis.sequence.small_step_share * 100).toFixed(1)}%${nearby}`,
     });
   }
 
@@ -202,6 +343,7 @@ export function buildFingerprintReport(input: {
       ? {
           autocorrelation: analysis.sequence.autocorrelation,
           smallStepShare: analysis.sequence.small_step_share,
+          nearbyPairShare: analysis.sequence.nearby_pair_share,
           modelLike: analysis.sequence.model_like,
         }
       : null,

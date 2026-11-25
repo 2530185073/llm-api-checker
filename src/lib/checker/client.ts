@@ -1,5 +1,6 @@
+import { geminiFacts } from "../composition/facts";
 import type { CallResult, Endpoint, Protocol, Usage } from "./types";
-import { endpointUrl, modelsUrl, redact } from "./url";
+import { endpointUrl, geminiBaseUrl, modelsUrl, redact } from "./url";
 
 type Json = Record<string, unknown>;
 
@@ -25,15 +26,23 @@ const KEPT_HEADERS = [
   "x-ratelimit-limit-tokens",
   "anthropic-ratelimit-requests-limit",
   "x-openrouter-provider",
+  "server-timing",
   "cf-ray",
   "via",
 ];
 
 export function authHeaders(protocol: Protocol | "any", apiKey: string): Record<string, string> {
-  const headers: Record<string, string> = { Authorization: `Bearer ${apiKey}` };
+  const isGoogleKey = /^AIza/.test(apiKey);
+  const headers: Record<string, string> = {};
+  if (!isGoogleKey || (protocol !== "gemini" && protocol !== "any")) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
   if (protocol === "messages" || protocol === "any") {
     headers["x-api-key"] = apiKey;
     headers["anthropic-version"] = "2023-06-01";
+  }
+  if (protocol === "gemini" || protocol === "any") {
+    headers["x-goog-api-key"] = apiKey;
   }
   return headers;
 }
@@ -59,6 +68,30 @@ export function buildBody(endpoint: Endpoint, options: CallOptions): Json {
     if (options.system) body.instructions = options.system;
     if (options.maxTokens) body.max_output_tokens = Math.max(16, options.maxTokens);
     if (effort) body.reasoning = { effort };
+    return body;
+  }
+  if (endpoint.protocol === "gemini") {
+    const genConfig: Json = {};
+    if (options.maxTokens) genConfig.maxOutputTokens = options.maxTokens;
+    if (effort) {
+      const f = geminiFacts(model);
+      if (effort === "none") {
+        genConfig.thinkingConfig = f.thinkingLevels ? { thinkingLevel: f.thinkingLevels[0] } : { thinkingBudget: 0 };
+      } else {
+        const level = effort === "xhigh" || effort === "max" ? "high" : effort;
+        if (f.thinkingLevels) {
+          const picked = f.thinkingLevels.includes(level) ? level : f.thinkingLevels[0];
+          genConfig.thinkingConfig = { thinkingLevel: picked, includeThoughts: true };
+        } else {
+          genConfig.thinkingConfig = { includeThoughts: true };
+        }
+      }
+    }
+    const body: Json = {
+      contents: [{ role: "user", parts: [{ text: options.prompt }] }],
+    };
+    if (options.system) body.systemInstruction = { parts: [{ text: options.system }] };
+    if (Object.keys(genConfig).length) body.generationConfig = genConfig;
     return body;
   }
   const body: Json = {
@@ -94,6 +127,11 @@ function readUsage(protocol: Protocol, raw: unknown, into: Usage) {
     into.output = num(u.output_tokens) ?? into.output;
     into.reasoning = num(obj(u.output_tokens_details).reasoning_tokens) ?? into.reasoning;
     into.cached = num(obj(u.input_tokens_details).cached_tokens) ?? into.cached;
+  } else if (protocol === "gemini") {
+    into.input = num(u.promptTokenCount) ?? into.input;
+    into.output = num(u.candidatesTokenCount) ?? into.output;
+    into.reasoning = num(u.thoughtsTokenCount) ?? into.reasoning;
+    into.cached = num(u.cachedContentTokenCount) ?? into.cached;
   } else {
     const base = num(u.input_tokens);
     const cacheWrite = num(u.cache_creation_input_tokens) ?? 0;
@@ -183,6 +221,29 @@ function acceptEvent(protocol: Protocol, data: Json, state: ParseState, now: num
       if (state.text) markToken();
       state.complete = data.status === "completed";
       state.finishReason = str(data.status);
+    }
+    return;
+  }
+  if (protocol === "gemini") {
+    state.responseModel = str(data.modelVersion) ?? state.responseModel;
+    state.responseId = str(data.responseId) ?? state.responseId;
+    readUsage(protocol, data.usageMetadata, state.usage);
+    const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+    const cand = obj(candidates[0]);
+    const parts = Array.isArray(obj(cand.content).parts) ? (obj(cand.content).parts as unknown[]) : [];
+    for (const part of parts) {
+      const p = obj(part);
+      if (p.thought) {
+        markToken();
+        state.reasoningText = true;
+      } else if (typeof p.text === "string" && p.text) {
+        markToken();
+        state.text += p.text;
+      }
+    }
+    if (str(cand.finishReason)) {
+      state.finishReason = str(cand.finishReason);
+      state.complete = true;
     }
     return;
   }
@@ -291,7 +352,8 @@ export async function callModel(endpoint: Endpoint, fetchBase: string, options: 
   let status: number | null = null;
   const headers: Record<string, string> = {};
   try {
-    const response = await fetch(endpointUrl(fetchBase, endpoint.protocol), {
+    const stream = options.stream !== false;
+    const response = await fetch(endpointUrl(fetchBase, endpoint.protocol, endpoint.model, stream), {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders(endpoint.protocol, endpoint.apiKey) },
       body: JSON.stringify(buildBody(endpoint, options)),
@@ -373,12 +435,25 @@ export async function callModel(endpoint: Endpoint, fetchBase: string, options: 
 }
 
 export async function listModels(fetchBase: string, apiKey: string): Promise<string[]> {
-  const response = await fetch(modelsUrl(fetchBase), {
-    headers: authHeaders("any", apiKey),
+  const headers = authHeaders("any", apiKey);
+  let response = await fetch(modelsUrl(fetchBase), {
+    headers,
     signal: AbortSignal.timeout(20_000),
     redirect: "manual",
   });
-  const body = await response.text();
+  let body = await response.text();
+  const betaBase = geminiBaseUrl(fetchBase);
+  if (!response.ok && betaBase !== fetchBase && (response.status === 404 || response.status === 400)) {
+    const fallback = await fetch(modelsUrl(betaBase), {
+      headers: authHeaders("gemini", apiKey),
+      signal: AbortSignal.timeout(20_000),
+      redirect: "manual",
+    });
+    if (fallback.ok) {
+      response = fallback;
+      body = await fallback.text();
+    }
+  }
   if (!response.ok) throw new Error(redact(httpErrorMessage(response.status, body), apiKey));
   let data: Json;
   try {

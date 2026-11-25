@@ -6,7 +6,7 @@ import type { Vendor } from "../composition/types";
 
 const VENDORS: Vendor[] = ["claude", "openai", "gemini", "glm", "kimi", "deepseek"];
 
-const PROTOCOLS: ProtocolChoice[] = ["auto", "chat", "responses", "messages"];
+const PROTOCOLS: ProtocolChoice[] = ["auto", "chat", "responses", "messages", "gemini"];
 const JUDGE_MODES: JudgeMode[] = ["answer", "latency", "both"];
 const EFFORTS = ["", "none", "minimal", "low", "medium", "high", "xhigh", "max"];
 

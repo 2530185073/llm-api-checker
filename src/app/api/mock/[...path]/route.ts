@@ -28,12 +28,18 @@ const GENERATION: [RegExp, string][] = [
   [/^beta\/completions$/, "completions"],
 ];
 
-/** Demo keys containing only-chat / only-responses emulate channels that expose a single generation endpoint. */
+/** Demo keys containing only-chat / only-responses / only-messages / only-gemini emulate single-protocol channels. */
 function restricted(key: string, route: string): Response | null {
-  const only = key.match(/only-(chat|responses)/)?.[1];
+  const only = key.match(/only-(chat|responses|messages|gemini)/)?.[1];
   const wire = GENERATION.find(([re]) => re.test(route))?.[1];
   if (!only || !wire || wire === only) return null;
-  return err(404, { error: { message: `This channel only serves /v1/${only === "chat" ? "chat/completions" : "responses"}; ${route} is not available.`, type: "invalid_request_error", code: "unsupported_endpoint" } });
+  const label: Record<string, string> = {
+    chat: "/v1/chat/completions",
+    responses: "/v1/responses",
+    messages: "/v1/messages",
+    gemini: "/v1beta/models/{model}:generateContent",
+  };
+  return err(404, { error: { message: `This channel only serves ${label[only]}; ${route} is not available.`, type: "invalid_request_error", code: "unsupported_endpoint" } });
 }
 
 function credential(request: Request) {

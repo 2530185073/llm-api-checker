@@ -147,16 +147,16 @@ export interface GeminiFacts {
 
 export function geminiFacts(model: string): GeminiFacts {
   const id = normalizeModelId(model).replace(/^models\//, "");
-  const argon = /gemini-4/.test(id);
+  const gen4 = /gemini-4/.test(id);
   const m = id.match(/gemini-(\d+(?:\.\d+)?)/);
   const v = m ? Number(m[1]) : 0;
   return {
     known: v > 0,
     version: v,
-    thinkingLevels: v >= 3 ? (argon || v >= 3.8 || /3\.1-pro/.test(id) ? ["low", "medium", "high"] : ["minimal", "low", "medium", "high"]) : null,
+    thinkingLevels: v >= 3 ? (gen4 || v >= 3.8 || /3\.1-pro/.test(id) ? ["low", "medium", "high"] : ["minimal", "low", "medium", "high"]) : null,
     multiCandidates: v > 0 && v < 3,
     prefillAllowed: v > 0 && v < 3.6,
-    hiddenPrefix: argon ? 34 : 4,
+    hiddenPrefix: gen4 ? 34 : 4,
     cacheMin: v >= 3 ? 4096 : 2048,
   };
 }
@@ -195,9 +195,9 @@ export function compatFacts(vendor: Vendor, model: string): CompatFacts {
   }
   if (vendor === "kimi") {
     const k3 = /k3/.test(id);
-    const k27 = /k2\.7/.test(id);
+    const k27 = /k2\.[78]/.test(id);
     return {
-      known: /k3|k2\.[67]/.test(id),
+      known: /k3|k2\.[678]/.test(id),
       window: k3 ? 1_048_576 : 262_144,
       maxOutput: k3 ? 1_048_576 : 262_144,
       thinking: k3 || k27 ? "forced" : "optional",

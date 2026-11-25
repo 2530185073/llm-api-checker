@@ -1,6 +1,6 @@
 import type { Protocol } from "./types";
 
-const ENDPOINT_SUFFIX = /\/(chat\/completions|responses|messages|models)\/?$/i;
+const ENDPOINT_SUFFIX = /(\/(chat\/completions|responses|messages|models)|\/models\/[^/]+:(generateContent|streamGenerateContent|countTokens))\/?$/i;
 
 export function normalizeBaseUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -20,7 +20,7 @@ export function normalizeBaseUrl(raw: string): string {
   return `${url.origin}${path}`;
 }
 
-/** Protocol named by a pasted endpoint URL (…/chat/completions, …/responses, …/messages), if any. */
+/** Protocol named by a pasted endpoint URL (…/chat/completions, …/responses, …/messages, …/models/{m}:generateContent), if any. */
 export function impliedProtocol(raw: string): Protocol | null {
   let path = "";
   try {
@@ -32,12 +32,26 @@ export function impliedProtocol(raw: string): Protocol | null {
   if (/\/chat\/completions$/i.test(path)) return "chat";
   if (/\/responses$/i.test(path)) return "responses";
   if (/\/messages$/i.test(path)) return "messages";
+  if (/\/models\/[^/]+:(generateContent|streamGenerateContent|countTokens)$/i.test(path)) return "gemini";
   return null;
 }
 
-export const PROTOCOL_PATH: Record<Protocol, string> = { chat: "/chat/completions", responses: "/responses", messages: "/messages" };
+export const PROTOCOL_PATH: Record<Protocol, string> = {
+  chat: "/chat/completions",
+  responses: "/responses",
+  messages: "/messages",
+  gemini: "/models/{model}:generateContent",
+};
 
-export function endpointUrl(baseUrl: string, protocol: Protocol): string {
+export function geminiBaseUrl(baseUrl: string): string {
+  return baseUrl.replace(/\/v1$/, "/v1beta");
+}
+
+export function endpointUrl(baseUrl: string, protocol: Protocol, model = "", stream = true): string {
+  if (protocol === "gemini") {
+    const cleanModel = encodeURIComponent(model.replace(/^models\//, ""));
+    return `${geminiBaseUrl(baseUrl)}/models/${cleanModel}:${stream ? "streamGenerateContent?alt=sse" : "generateContent"}`;
+  }
   const path = protocol === "chat" ? "/chat/completions" : protocol === "responses" ? "/responses" : "/messages";
   return baseUrl + path;
 }

@@ -9,7 +9,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
-RUN LMFPD_CACHE=/app/.cache/lmfpd/data.bin node scripts/prefetch-data.mjs || echo "prefetch skipped; data will download on first check"
+RUN mkdir -p /app/.cache/lmfpd && (LMFPD_CACHE=/app/.cache/lmfpd/data.bin node scripts/prefetch-data.mjs || echo "prefetch skipped; data will download on first check")
 
 FROM node:22-alpine AS runner
 WORKDIR /app

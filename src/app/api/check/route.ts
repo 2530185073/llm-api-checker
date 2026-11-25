@@ -20,7 +20,8 @@ export async function POST(request: Request) {
   active++;
   const { options, target } = parsed;
   const abort = new AbortController();
-  request.signal.addEventListener("abort", () => abort.abort());
+  const onAbort = () => abort.abort();
+  request.signal.addEventListener("abort", onAbort);
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
         emit({ type: "error", message: (error as Error).message });
       } finally {
         clearInterval(heartbeat);
+        request.signal.removeEventListener("abort", onAbort);
         active--;
         closed = true;
         try {
