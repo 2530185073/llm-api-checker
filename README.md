@@ -76,7 +76,7 @@ docker compose up -d
 
 | 厂商 | 用例数 | 主要分组 |
 | --- | --- | --- |
-| Claude（Messages） | 61 | 连通性、协议保真、流式、高级特性、身份 / 成分、压力 |
+| Claude（Messages） | 69 | 连通性、协议保真、流式、高级特性、身份 / 成分、压力、计费真实性 |
 | OpenAI（Chat / Responses） | 30 | 连通性、协议保真、流式、高级特性、身份 / 成分 |
 | Gemini（generateContent） | 30 | 连通性、协议保真、流式、高级特性、身份 / 成分 |
 | GLM | 64 | 端点画像、usage 计费完整性、与官方对照（精度 / 性能）、上下文窗口、参数校验、思考、工具、流式、身份 / 成分、压力 |
@@ -93,6 +93,21 @@ docker compose up -d
 **精度综合判定**：精度题组（随机串复制、排序、字段召回、逐项变换、算术链）、长上下文多针召回、KV 缓存差分复制、贪心分歧、思考画像、分词计数等用例各自给出「强 / 弱 / 无」精度证据，强证据 2 分、弱证据 1 分，合计 ≥ 4 才判疑似低精度。
 
 **usage 审计**：本次运行中的每个 200 响应都会被记录，收尾用例统一检查 `total = prompt + completion`、`cached ≤ prompt`、`hit + miss = prompt`、`reasoning ≤ completion`、有输出则 `completion ≥ 1` 等不变量，算术不成立判 usage 造假。
+
+**计费真实性（基准对照，Claude）**：不需要官方 Key。用例按 Claude Code 的请求形态（约 1.8 万 token 的三段 system 与 14 个工具定义、带 `cache_control` 的用户消息）发送与仓库自带官方计费基准**逐字节一致**的请求，并要求模型给出**逐字固定**的输出（`OK`、one～twenty、one～three hundred、one～one thousand）或用 `max_tokens` 截断。输出与基准不一致的样本作废；有效样本比对上报的上下文总量（input + 缓存写入 + 缓存读取）、output、缓存字段，按官方价折算账单倍数。
+
+| 用例 | 默认 | 请求数 | 内容 |
+| --- | --- | --- | --- |
+| 基础上下文 | ✓ | 6 | 冷启动、原样重发、同前缀极短 / 短 / 长输出、max_tokens=512 截断 |
+| 不带缓存标记 | ✓ | 2 | 去掉 cache_control 连发两次，出现缓存 token 即为编造 |
+| 非流式 | ✓ | 2 | 非流式路径的 usage |
+| 上下文梯度 | | 15 | 额外 1 万～16 万 token 代码上下文，发现随上下文变化的膨胀与封顶 |
+| 内容类型 | | 6 | 中文 / 英文 / JSON 各约 3 万 token，发现按字符估算 token 的渠道 |
+| 1 小时缓存 | | 2 | ttl=1h 的写入档位与计价 |
+| 多轮 Agent 会话 | | 9 | 固定的 8 轮工具调用历史，逐轮命中前缀缓存，对应 Claude Code 写代码的常态 |
+| 计费汇总与场景推算 | ✓（收尾） | 0 | 汇总膨胀中位数、冷启动 / 缓存命中账单倍数，并分段插值推算「Claude Code 写代码」「长文档问答」的账单倍数 |
+
+上下文误差超过 0.5% + 10 token、output 误差超过 3% + 30 token（思考 token 的自然波动）即判偏差，明显偏离（上下文 > 2%、output 或账单 > 10%）或不遵守 `max_tokens` 标记为 usage 造假。基准目前覆盖 `claude-opus-5-5`，采集方法、维度与重新采集步骤见 [scripts/billing-baseline/README.md](scripts/billing-baseline/README.md)，素材来源与许可见 `src/data/billing-baseline/NOTICE.md`。
 
 **分词器指纹**：用差分计数探针测出上游分词器，并与 62 类开源分词器的真实计数比对，对照各厂商官方分词器（OpenAI o200k、Gemini Gemma 3、GLM-5 / GLM-4、Kimi、DeepSeek-V3 词表）。
 
@@ -168,10 +183,13 @@ src/lib/checker/visual.ts           HTML/SVG 动画题与自动检查
 src/lib/checker/run.ts              协议识别、并发调度、重复执行、多模型、综合评分
 src/lib/composition/                渠道成分检测：用例引擎、各协议请求、通用用例与 OpenAI 兼容用例库
 src/lib/composition/cases/          各厂商用例清单（claude / openai / gemini / glm / kimi / deepseek）
+src/lib/composition/billing/        计费真实性用例：基准请求构造规范（spec.ts）与比对 / 汇总（cases.ts）
 src/lib/mock/                       演示上游：各厂商协议与参数规则、正常与掺假渠道
 src/app/api/cases/route.ts          用例清单与参考库元数据接口
 src/lib/vendor/lmfpd/               上游数字指纹解码与评分模块（含 GPT-6.2 序列形态修复）
 src/lib/vendor/tokenizer/           分词器后验模块
 src/data/tokenizer_bank.json        分词器库
+src/data/billing-baseline/          官方计费基准（claude-opus-5.5.json）与固定素材（system / 工具 / 语料 / Agent 剧本）
+scripts/billing-baseline/           计费基准采集与汇总脚本（Python，维护者使用）
 mock/fingerprint-fixtures.json      演示用指纹样本
 ```
