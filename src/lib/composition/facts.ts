@@ -50,8 +50,17 @@ export interface ClaudeFacts {
   displayDefault: "summarized" | "omitted";
   fastMode: "ga" | "preview" | "standard" | "none";
   thinkingBinding: boolean;
+  /** 显式 prefix_mismatch_behavior=error 时实测稳定拒绝改过前缀的 thinking 块："history" 改历史消息与加 system 都 400；"system" 只有加 system 400；null 不做严格判定（官方按账号创建时间分批强制，结果因账号而异）。 */
+  bindingStrict: "history" | "system" | null;
   perTurnEffort: boolean;
   generationAtLeast47: boolean;
+  /** 最小可缓存前缀（token），低于它官方不写缓存也不报错。 */
+  cacheMin: number;
+  /** 关闭思考时允许的最高 effort（超过返回 400）；null 表示无此限制或不可关闭。 */
+  disabledEffortCap: string | null;
+  contextWindow: number;
+  /** 支持 thinking.type=adaptive（Haiku 4.5、Sonnet 4.5、Opus 4.5 及更早只支持 budget_tokens）。 */
+  adaptiveThinking: boolean;
 }
 
 export function claudeFacts(model: string): ClaudeFacts {
@@ -78,6 +87,16 @@ export function claudeFacts(model: string): ClaudeFacts {
           : ["low", "medium", "high", "xhigh", "max"];
   const maxOutput = fable || (opus && ge(4.6)) || (sonnet && ge(4.6)) || (haiku && ge(5.5)) ? 128000 : opus && v < 4.5 ? 32000 : 64000;
   const latest51 = (fable && ge(5.1)) || (opus && ge(5.5)) || (sonnet && ge(5.5));
+  // 最小可缓存前缀：新一代 512；Opus 4.8 / Sonnet 5 / Sonnet 4.x / Opus 4.1 及更早 1024；Opus 4.7 2048；Opus 4.6 / 4.5、Haiku 4.5 4096
+  const cacheMin = !known
+    ? 4096
+    : fable || (opus && ge(5)) || (sonnet && ge(5.5)) || (haiku && ge(5.5))
+      ? 512
+      : (opus && v === 4.7) || (haiku && v === 3.5)
+        ? 2048
+        : (opus && (v === 4.6 || v === 4.5)) || (haiku && v === 4.5)
+          ? 4096
+          : 1024;
   return {
     known,
     family,
@@ -93,10 +112,15 @@ export function claudeFacts(model: string): ClaudeFacts {
     betweenTools: sonnet && v === 5.5,
     systemRoleInMessages: (opus && ge(4.8)) || fable || (sonnet && ge(5.5)) || (haiku && ge(5.5)),
     displayDefault: gen47 ? "omitted" : "summarized",
-    fastMode: opus && ge(5.5) ? "ga" : opus && (v === 5 || v === 4.8) ? "preview" : opus && v === 4.6 ? "standard" : "none",
-    thinkingBinding: (family === "fable" && ge(5.1)) || (opus && ge(5.5)) || (sonnet && ge(5.5)) || (haiku && ge(5.5)),
+    fastMode: (opus && ge(5.5)) || (fable && ge(5.2)) ? "ga" : opus && (v === 5 || v === 4.8) ? "preview" : opus && v === 4.6 ? "standard" : "none",
+    thinkingBinding: (fable && ge(5.1)) || (opus && ge(5.5)) || (sonnet && ge(5.5)) || (haiku && ge(5.5)),
+    bindingStrict: opus && ge(5.5) ? "history" : null,
     perTurnEffort: (fable && ge(5.1)) || (opus && ge(5)) || (sonnet && ge(5.5)) || (haiku && ge(5.5)),
     generationAtLeast47: gen47,
+    cacheMin,
+    disabledEffortCap: (opus && v === 5) || (haiku && ge(5.5)) ? "high" : null,
+    contextWindow: fable || (opus && ge(4.6)) || (sonnet && ge(4.6)) || (haiku && ge(5.5)) ? 1_000_000 : 200_000,
+    adaptiveThinking: !known || fable || (opus && ge(4.6)) || (sonnet && ge(4.6)) || (haiku && ge(5.5)),
   };
 }
 

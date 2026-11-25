@@ -38,11 +38,19 @@ function extract(body: Json) {
   return { media, turns, toolResult, system };
 }
 
+/** 官方 Claude API 当前接受的工具类型（淘汰版本的 400 报错原样列出）。 */
+const TOOL_TAGS = [
+  "advisor_20260301", "bash_20250124", "browser_toolset_20260801", "code_execution_20250522", "code_execution_20250825", "code_execution_20260120",
+  "code_execution_20260521", "computer_toolset_20260801", "custom", "memory_20250818", "text_editor_20250124", "text_editor_20250429", "text_editor_20250728",
+  "tool_search_tool_bm25", "tool_search_tool_bm25_20251119", "tool_search_tool_regex", "tool_search_tool_regex_20251119", "web_fetch_20250910",
+  "web_fetch_20260209", "web_fetch_20260309", "web_fetch_20260318", "web_search_20250305", "web_search_20260209", "web_search_20260318",
+];
+
 const cachedPrefixes = new Set<string>();
 const h = (t: string) => createHash("sha1").update(t).digest("hex");
 
 /** Anthropic-style caching: read the longest previously cached prefix at a block boundary, write up to the last breakpoint. */
-function cacheInfo(body: Json, model: string) {
+function cacheInfo(body: Json, model: string, min: number) {
   const sys = Array.isArray(body.system) ? body.system : [];
   let prefix = "";
   const boundaries: string[] = [];
@@ -66,7 +74,7 @@ function cacheInfo(body: Json, model: string) {
   const total = estTokens(marked.text);
   const creation = cachedPrefixes.has(key(marked.text)) ? 0 : total - read;
   cachedPrefixes.add(key(marked.text));
-  return { ttl: marked.ttl, read: read >= 1024 ? read : 0, creation: total >= 1024 ? creation : 0 };
+  return { ttl: marked.ttl, read: read >= min ? read : 0, creation: total >= min ? creation : 0 };
 }
 
 function validate(p: Persona, body: Json, headers: Headers): Response | null {
@@ -92,8 +100,10 @@ function validate(p: Persona, body: Json, headers: Headers): Response | null {
   if (th) {
     if (th.type === "between_tools" && !f.betweenTools) return bad('"thinking.type.between_tools" is not supported for this model.');
     if (th.type === "disabled" && !f.thinkingDisableable) return bad('"thinking.type.disabled" is not supported for this model');
+    if (th.type === "disabled" && f.disabledEffortCap && ["xhigh", "max"].includes(effort))
+      return bad(`output_config.effort '${effort}' is not supported when thinking is disabled on this model. Use effort '${f.disabledEffortCap}' or below, or enable thinking.`);
     if (th.type === "enabled" && f.budgetTokensRemoved) return bad('"thinking.type.enabled" is not supported for this model');
-    if (th.display && !["summarized", "omitted"].includes(th.display)) return bad(`thinking.display: unknown value '${th.display}'`);
+    if (th.display && !["summarized", "omitted", "updates"].includes(th.display)) return bad("thinking.adaptive.display: Input should be 'summarized', 'omitted', 'updates'");
     if (th.block_binding) return bad("thinking.block_binding: requires a model that supports thinking binding");
   }
   for (const m of msgs)
@@ -103,9 +113,10 @@ function validate(p: Persona, body: Json, headers: Headers): Response | null {
   if (body.inference_geo !== undefined && !["us", "global"].includes(body.inference_geo)) return bad("inference_geo: invalid value");
   const ttlBad = JSON.stringify(body).match(/"ttl":"(\w+)"/g)?.some((t) => !/"(5m|1h)"/.test(t));
   if (ttlBad) return bad("cache_control.ttl: must be one of 5m, 1h");
-  if (body.speed !== undefined && f.fastMode === "none") return bad(`'${p.id.replace(/\./g, "-")}' does not support the \`speed\` parameter.`);
-  for (const t of body.tools ?? []) {
-    if (/^computer_/.test(t.type ?? "")) return bad(`'${p.id.replace(/\./g, "-")}' does not support tool types: ${t.type}. Did you mean one of computer_20251124?`);
+  // 官方对不支持 fast mode 的型号静默接受 speed，按标准速度运行
+  for (const [i, t] of (body.tools ?? []).entries()) {
+    if (t.type && !TOOL_TAGS.includes(t.type))
+      return bad(`tools.${i}: Input tag '${t.type}' found using 'type' does not match any of the expected tags: ${TOOL_TAGS.map((x) => `'${x}'`).join(", ")}`);
   }
   if (body.tool_choice?.type === "tool" && f.forcedToolChoiceRemoved) return bad('tool_choice: type "tool" and "any" are not supported for this model');
   return null;
@@ -121,7 +132,7 @@ export async function handleMessages(p: Persona, body: Json, headers: Headers): 
   const input = inputTokens(p, promptText) + (media.images.length ? 80 : 0) + (media.pdfs.length ? 300 : 0);
   if (p.honest && input > p.window)
     return Response.json({ type: "error", error: { type: "invalid_request_error", message: `prompt is too long: ${input} tokens > ${p.window} maximum` } }, { status: 400 });
-  const cache = p.honest ? cacheInfo(body, p.id) : null;
+  const cache = p.honest ? cacheInfo(body, p.id, f.cacheMin) : null;
   const read = cache?.read ?? 0;
   const creation = cache?.creation ?? 0;
   const content: Json[] = [];
@@ -131,13 +142,21 @@ export async function handleMessages(p: Persona, body: Json, headers: Headers): 
   const lastUser = turns.filter((t) => t.role === "user").pop()?.text ?? "";
   const all = `${system}\n${turns.map((t) => t.text).join("\n")}`;
   const serverSearch = (body.tools ?? []).find((t: Json) => /^web_search_/.test(t.type ?? ""));
-  const plan = toolResult === null && !serverSearch ? planTool((body.tools ?? []).filter((t: Json) => !t.type || t.type === "custom"), body.tool_choice, lastUser, all) : null;
+  const serverCode = (body.tools ?? []).find((t: Json) => /^code_execution_/.test(t.type ?? ""));
+  const plan = toolResult === null && !serverSearch && !serverCode ? planTool((body.tools ?? []).filter((t: Json) => !t.type || t.type === "custom"), body.tool_choice, lastUser, all) : null;
   let usageExtra: Json = {};
   if (toolResult !== null) content.push({ type: "text", text: weatherReply(toolResult) });
   else if (serverSearch && p.honest) {
     const sid = `srvtoolu_01${rand(22)}`;
     content.push({ type: "server_tool_use", id: sid, name: "web_search", input: { query: lastUser } }, { type: "web_search_tool_result", tool_use_id: sid, content: [{ type: "web_search_result", url: "https://en.wikipedia.org/wiki/Canberra", title: "Canberra" }] }, { type: "text", text: "Canberra" });
     usageExtra = { server_tool_use: { web_search_requests: 1 } };
+  } else if (serverCode && p.honest) {
+    const sid = `srvtoolu_01${rand(22)}`;
+    content.push(
+      { type: "server_tool_use", id: sid, name: "bash_code_execution", input: { command: "python3 -c 'print(2**61-1)'" } },
+      { type: "bash_code_execution_tool_result", tool_use_id: sid, content: { type: "bash_code_execution_result", stdout: "2305843009213693951\n", stderr: "", return_code: 0, content: [] } },
+      { type: "text", text: "2305843009213693951" },
+    );
   } else if (plan) {
     content.push({ type: "tool_use", id: p.honest ? `toolu_01${rand(22)}` : `call_${rand(24)}`, name: plan.name, input: plan.args });
     stop = "tool_use";
@@ -180,24 +199,26 @@ export async function handleMessages(p: Persona, body: Json, headers: Headers): 
         cache_creation: { ephemeral_5m_input_tokens: cache?.ttl === "5m" ? creation : 0, ephemeral_1h_input_tokens: cache?.ttl === "1h" ? creation : 0 },
         output_tokens: output,
         service_tier: "standard",
-        ...(body.inference_geo ? { inference_geo: body.inference_geo } : {}),
+        inference_geo: body.inference_geo ?? "global",
         ...(body.speed && f.fastMode !== "none" ? { speed: f.fastMode === "standard" ? "standard" : "fast" } : {}),
         ...usageExtra,
       }
     : { input_tokens: input, output_tokens: output };
+  if (p.honest) usage.iterations = [{ input_tokens: usage.input_tokens, output_tokens: output, cache_read_input_tokens: read, cache_creation_input_tokens: creation, cache_creation: usage.cache_creation, type: "message" }];
+  const extraTop: Json = p.honest ? { stop_details: null, context_management: { applied_edits: [] }, input_transformations: [], safeguard_results: [] } : {};
   const model = p.honest ? body.model : body.model;
   const headersOut: Record<string, string> = p.honest ? { "request-id": `req_${rand(24)}`, "anthropic-ratelimit-requests-limit": "4000" } : {};
 
   if (!body.stream) {
     await sleep(60);
-    return Response.json({ id, type: "message", role: "assistant", model, content, stop_reason: stop, stop_sequence: stopSequence, usage }, { headers: headersOut });
+    return Response.json({ id, type: "message", role: "assistant", model, content, stop_reason: stop, stop_sequence: stopSequence, ...extraTop, usage }, { headers: headersOut });
   }
   const enc = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: string, data: Json) => controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify({ type: event, ...data })}\n\n`));
       const start = p.honest ? { ...usage, output_tokens: 1 } : { input_tokens: input, output_tokens: 1 };
-      send("message_start", { message: { id, type: "message", role: "assistant", model, content: [], stop_reason: null, stop_sequence: null, usage: start } });
+      send("message_start", { message: { id, type: "message", role: "assistant", model, content: [], stop_reason: null, stop_sequence: null, ...(p.honest ? { stop_details: null, input_transformations: [] } : {}), usage: start } });
       if (p.honest) send("ping", {});
       await sleep(200);
       content.forEach((b, index) => {

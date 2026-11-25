@@ -76,7 +76,7 @@ docker compose up -d
 
 | 厂商 | 用例数 | 主要分组 |
 | --- | --- | --- |
-| Claude（Messages） | 69 | 连通性、协议保真、流式、高级特性、身份 / 成分、压力、计费真实性 |
+| Claude（Messages） | 70 | 连通性、协议保真、流式、高级特性、身份 / 成分、压力、计费真实性 |
 | OpenAI（Chat / Responses） | 30 | 连通性、协议保真、流式、高级特性、身份 / 成分 |
 | Gemini（generateContent） | 30 | 连通性、协议保真、流式、高级特性、身份 / 成分 |
 | GLM | 64 | 端点画像、usage 计费完整性、与官方对照（精度 / 性能）、上下文窗口、参数校验、思考、工具、流式、身份 / 成分、压力 |
@@ -93,6 +93,8 @@ docker compose up -d
 **精度综合判定**：精度题组（随机串复制、排序、字段召回、逐项变换、算术链）、长上下文多针召回、KV 缓存差分复制、贪心分歧、思考画像、分词计数等用例各自给出「强 / 弱 / 无」精度证据，强证据 2 分、弱证据 1 分，合计 ≥ 4 才判疑似低精度。
 
 **usage 审计**：本次运行中的每个 200 响应都会被记录，收尾用例统一检查 `total = prompt + completion`、`cached ≤ prompt`、`hit + miss = prompt`、`reasoning ≤ completion`、有输出则 `completion ≥ 1` 等不变量，算术不成立判 usage 造假。
+
+**Claude 用例与官方行为对齐**（以经官方订阅交叉验证的接口实测为准，2026-11）：缓存类用例的文本长度按型号高于最小可缓存前缀（Opus 4.6 / 4.5、Haiku 4.5 为 4096 token，Opus 4.7 为 2048，新一代 512）；`thinking.display` 的合法取值为 `summarized` / `omitted` / `updates`；fast mode 只记录（官方对未开通或不支持的型号也静默接受 `speed`、不回显 `usage.speed`）；thinking 块绑定只在实测稳定拒绝前缀改动的 Opus 5.5 上严格判定（改历史消息与加 system 都 400），其余型号官方按账号创建时间分批强制，只记录；淘汰工具版本的报错不再点名模型，改为核对官方工具类型列表；Anthropic 直连响应应带 `usage.service_tier / inference_geo / iterations` 与顶层 `stop_details / context_management / input_transformations / safeguard_results`；Opus 5 与 Haiku 5.5 关闭思考时 `effort=xhigh` 必 400；新增服务端 `code_execution_20260521` 用例。
 
 **计费真实性（基准对照，Claude）**：不需要官方 Key。用例按 Claude Code 的请求形态（约 1.8 万 token 的三段 system 与 14 个工具定义、带 `cache_control` 的用户消息）发送与仓库自带官方计费基准**逐字节一致**的请求，并要求模型给出**逐字固定**的输出（`OK`、one～twenty、one～three hundred、one～one thousand）或用 `max_tokens` 截断。输出与基准不一致的样本作废；有效样本比对上报的上下文总量（input + 缓存写入 + 缓存读取）、output、缓存字段，按官方价折算账单倍数。
 
