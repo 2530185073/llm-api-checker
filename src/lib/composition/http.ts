@@ -124,11 +124,19 @@ export class Ctx {
   }
 
   async send(opts: SendOpts): Promise<Resp> {
+    if (this.signal?.aborted) {
+      return { status: null, ok: false, json: null, text: "", body: "", headers: {}, durationMs: 0, ttftMs: null, events: [], contentType: "", error: "检测已取消" };
+    }
     const wire = wireOf(opts.path);
     if (this.lock && wire && wire !== this.lock) {
       throw new ProtocolLockError(`协议已锁定为 ${WIRE_LABEL[this.lock]}，拒绝发送 ${WIRE_LABEL[wire]} 请求`);
     }
-    return this.limiter(() => this.rawSend(opts));
+    return this.limiter(() => {
+      if (this.signal?.aborted) {
+        return Promise.resolve({ status: null, ok: false, json: null, text: "", body: "", headers: {}, durationMs: 0, ttftMs: null, events: [], contentType: "", error: "检测已取消" });
+      }
+      return this.rawSend(opts);
+    });
   }
 
   private async rawSend(opts: SendOpts): Promise<Resp> {
@@ -181,20 +189,25 @@ export class Ctx {
           if (out.ttftMs === null && !comment) out.ttftMs = Math.round(t);
           out.events.push({ t: Math.round(t), event, data: payload, json, comment: comment && !data.length });
         };
-        for (;;) {
-          const chunk = await reader.read();
-          const t = performance.now() - started;
-          buffer += chunk.done ? decoder.decode() : decoder.decode(chunk.value, { stream: true });
-          let m: RegExpExecArray | null;
-          while ((m = /\r?\n\r?\n/.exec(buffer))) {
-            frame(buffer.slice(0, m.index), t);
-            buffer = buffer.slice(m.index + m[0].length);
+        try {
+          for (;;) {
+            if (this.signal?.aborted) break;
+            const chunk = await reader.read();
+            const t = performance.now() - started;
+            buffer += chunk.done ? decoder.decode() : decoder.decode(chunk.value, { stream: true });
+            let m: RegExpExecArray | null;
+            while ((m = /\r?\n\r?\n/.exec(buffer))) {
+              frame(buffer.slice(0, m.index), t);
+              buffer = buffer.slice(m.index + m[0].length);
+            }
+            if (chunk.done) {
+              if (buffer.trim()) frame(buffer, t);
+              break;
+            }
+            if (out.text.length + buffer.length > 8_000_000) break;
           }
-          if (chunk.done) {
-            if (buffer.trim()) frame(buffer, t);
-            break;
-          }
-          if (out.text.length + buffer.length > 8_000_000) break;
+        } finally {
+          reader.cancel().catch(() => {});
         }
         out.text = out.events.map((e) => e.data).join("\n").slice(0, 2_000_000);
       } else {

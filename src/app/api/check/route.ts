@@ -3,8 +3,8 @@ import { runMulti } from "@/lib/checker/run";
 import type { ProgressEvent } from "@/lib/checker/types";
 import { redact } from "@/lib/checker/url";
 
-
-const MAX_ACTIVE = Number(process.env.MAX_CONCURRENT_CHECKS || 4);
+const rawMax = process.env.MAX_CONCURRENT_CHECKS;
+const MAX_ACTIVE = rawMax === undefined || rawMax.trim() === "" ? 20 : Number(rawMax);
 let active = 0;
 
 export async function POST(request: Request) {
@@ -14,13 +14,24 @@ export async function POST(request: Request) {
   } catch (error) {
     return Response.json({ error: (error as Error).message }, { status: 400 });
   }
-  if (active >= MAX_ACTIVE) {
-    return Response.json({ error: "当前检测任务较多，请稍后再试" }, { status: 429 });
+  if (MAX_ACTIVE > 0 && active >= MAX_ACTIVE) {
+    return Response.json({ error: `当前检测任务较多（${active}/${MAX_ACTIVE}），请稍后再试` }, { status: 429 });
   }
   active++;
+  let released = false;
+  const release = () => {
+    if (!released) {
+      released = true;
+      active = Math.max(0, active - 1);
+    }
+  };
+
   const { options, target } = parsed;
   const abort = new AbortController();
-  const onAbort = () => abort.abort();
+  const onAbort = () => {
+    abort.abort();
+    release();
+  };
   request.signal.addEventListener("abort", onAbort);
   const encoder = new TextEncoder();
 
@@ -46,7 +57,7 @@ export async function POST(request: Request) {
       } finally {
         clearInterval(heartbeat);
         request.signal.removeEventListener("abort", onAbort);
-        active--;
+        release();
         closed = true;
         try {
           controller.close();
@@ -54,7 +65,7 @@ export async function POST(request: Request) {
       }
     },
     cancel() {
-      abort.abort();
+      onAbort();
     },
   });
 

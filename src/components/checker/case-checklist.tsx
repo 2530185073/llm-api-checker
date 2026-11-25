@@ -89,7 +89,7 @@ export function CaseChecklist({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" variant="secondary" onClick={() => setFor(catalog?.defaults[vendor] ?? [])}>
-            默认
+            通用默认
           </Button>
           <Button type="button" size="sm" variant="secondary" onClick={() => setFor(list.map((c) => c.id))}>
             全选

@@ -68,6 +68,21 @@ export async function runCases(
 ): Promise<CaseResult[]> {
   const results: CaseResult[] = [];
   const runOne = async (d: CaseDef) => {
+    if (c.signal?.aborted) {
+      const s: CaseResult = {
+        id: d.id,
+        title: d.title,
+        section: d.section,
+        weight: effectiveWeight(d, c.mode, c.vendor),
+        tags: d.tags,
+        status: "skip",
+        summary: "检测已取消",
+        durationMs: 0,
+        requests: 0,
+      };
+      results.push(s);
+      return s;
+    }
     onCase({ id: d.id, running: true });
     const started = Date.now();
     const before = c.requests;
@@ -103,6 +118,7 @@ export async function runCases(
   const final = cases.filter((d) => d.tags.includes("final") && !d.tags.includes("pre"));
   const body = cases.filter((d) => !pre.includes(d) && !final.includes(d));
   for (const d of pre) {
+    if (c.signal?.aborted) return order(results, cases);
     const r = await runOne(d);
     if (d.id.endsWith("basic") && r.status === "fail" && !(c.lock && d.protocols.length && !d.protocols.includes(c.lock))) {
       for (const rest of [...body, ...final]) {
@@ -114,7 +130,12 @@ export async function runCases(
     }
   }
   await Promise.all(body.map(runOne));
-  for (const d of final) await runOne(d);
+  if (!c.signal?.aborted) {
+    for (const d of final) {
+      if (c.signal?.aborted) break;
+      await runOne(d);
+    }
+  }
   return order(results, cases);
 }
 

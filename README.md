@@ -42,7 +42,7 @@ docker compose up -d
 | --- | --- | --- |
 | `PORT` | `43117`（Docker 内为 `3000`） | 监听端口 |
 | `ALLOW_PRIVATE_TARGETS` | 开发模式允许，生产模式禁止 | 设为 `1` 允许检测 localhost / 内网地址（例如本机的 one-api、new-api）。公网部署建议保持禁止，避免被当作 SSRF 跳板 |
-| `MAX_CONCURRENT_CHECKS` | `4` | 单实例同时进行的检测任务上限（一次多模型检测算一个任务） |
+| `MAX_CONCURRENT_CHECKS` | `20` | 单实例同时进行的检测任务上限（设为 `0` 表示不限制；客户端取消/断开后会立即释放槽位） |
 | `LMFPD_CACHE` | `/tmp/lmfpd/data.bin` | 参考数据缓存文件 |
 | `LMFPD_TTL_SEC` | `86400`（24 小时） | 参考数据自动刷新间隔（秒），到期后自动后台更新并在进程内重载 |
 | `LMFPD_DATA_SOURCE` | 空 | 参考数据来源；可填镜像 URL（以 `/` 结尾）或本地数据目录（完全离线） |
