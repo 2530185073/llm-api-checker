@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, CircleAlert, CircleCheck, CircleMinus, CircleSlash, Layers, TriangleAlert } from "lucide-react";
+import { ChevronDown, CircleAlert, CircleCheck, CircleMinus, CircleSlash, Layers, Receipt, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,12 +89,15 @@ function CaseRow({ r }: { r: CaseResult }) {
 }
 
 export function CompositionCard({ c }: { c: CompositionReport }) {
-  const [filter, setFilter] = useState<"all" | "issues">("issues");
+  const billSummary = useMemo(() => c.cases.find((r) => r.id === "bill_summary" && r.status !== "skip") ?? null, [c.cases]);
+  const billingCount = useMemo(() => c.cases.filter((r) => r.section === "计费真实性" && r.status !== "skip").length, [c.cases]);
+  const [filter, setFilter] = useState<"all" | "issues" | "billing">("issues");
   const tone = compositionTone(c);
   const sections = useMemo(() => {
     const out: { name: string; items: CaseResult[] }[] = [];
     for (const r of c.cases) {
       if (filter === "issues" && !(r.status === "fail" || r.status === "warn")) continue;
+      if (filter === "billing" && r.section !== "计费真实性") continue;
       const s = out.find((x) => x.name === r.section);
       if (s) s.items.push(r);
       else out.push({ name: r.section, items: [r] });
@@ -140,10 +143,32 @@ export function CompositionCard({ c }: { c: CompositionReport }) {
             )}
           </div>
         </div>
-        <div className="flex gap-1 rounded-md border p-1 text-sm w-fit">
-          {(["issues", "all"] as const).map((k) => (
+
+        {billSummary && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
+                <Receipt className="size-4 text-primary" />
+                <span>{billSummary.summary}</span>
+              </div>
+              {c.flags.includes("usage_fake") && <Badge variant="destructive">usage 造假</Badge>}
+            </div>
+            {billSummary.details && billSummary.details.length > 0 && (
+              <ul className="space-y-1 rounded-lg bg-background/80 p-3 font-mono text-[13px] leading-relaxed text-foreground/85">
+                {billSummary.details.map((d, i) => (
+                  <li key={i} className="break-all whitespace-pre-wrap">
+                    {d}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-1 rounded-md border p-1 text-sm w-fit">
+          {(["issues", ...(billingCount > 0 ? (["billing"] as const) : []), "all"] as const).map((k) => (
             <button key={k} type="button" onClick={() => setFilter(k)} className={cn("rounded px-3 py-1 font-medium", filter === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
-              {k === "issues" ? `只看问题（${c.failed + c.warned}）` : `全部用例（${c.cases.length}）`}
+              {k === "issues" ? `只看问题（${c.failed + c.warned}）` : k === "billing" ? `计费真实性（${billingCount}）` : `全部用例（${c.cases.length}）`}
             </button>
           ))}
         </div>

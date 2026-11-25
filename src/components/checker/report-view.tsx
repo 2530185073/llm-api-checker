@@ -11,6 +11,7 @@ import {
   Fingerprint,
   Gauge,
   Layers,
+  Receipt,
   Timer,
   Zap,
 } from "lucide-react";
@@ -49,7 +50,15 @@ function Stat({ icon: Icon, label, value }: { icon: typeof Timer; label: string;
 }
 
 export function ReportView({ report }: { report: CheckReport }) {
-  const defaultTab: TabKey = report.fingerprint ? "fingerprint" : report.composition ? "composition" : "degradation";
+  const billSummary = report.composition?.cases.find((r) => r.id === "bill_summary" && r.status !== "skip") ?? null;
+  const defaultTab: TabKey =
+    report.composition && (report.composition.flags.length > 0 || billSummary)
+      ? "composition"
+      : report.fingerprint
+        ? "fingerprint"
+        : report.composition
+          ? "composition"
+          : "degradation";
   const [tab, setTab] = useState<TabKey>(defaultTab);
   const tone: Tone = report.overall.level === "unknown" ? "muted" : report.overall.level;
   const claim = report.fingerprint ? CLAIM_LABEL[report.fingerprint.claimStatus] : null;
@@ -98,85 +107,109 @@ export function ReportView({ report }: { report: CheckReport }) {
             </Button>
           </div>
 
+          {billSummary && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3.5 py-2.5 text-sm">
+              <span className="inline-flex items-center gap-2 font-medium text-foreground">
+                <Receipt className="size-4 shrink-0 text-primary" />
+                {billSummary.summary}
+              </span>
+              {tab !== "composition" && (
+                <button type="button" onClick={() => setTab("composition")} className="text-[13px] font-medium text-primary hover:underline">
+                  查看计费明细 →
+                </button>
+              )}
+            </div>
+          )}
+
           {/* 3 Sub-Score KPI Cards acting as Section Tabs */}
-          <div className="grid gap-2.5 sm:grid-cols-3" role="tablist" aria-label="报告分项切换">
-            {report.fingerprint && claim && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "fingerprint"}
-                onClick={() => setTab("fingerprint")}
-                className={cn(
-                  "flex flex-col gap-1 rounded-xl border p-3.5 text-left transition-all",
-                  tab === "fingerprint" ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-muted/20 hover:bg-muted/40",
-                )}
-              >
-                <div className="flex items-center justify-between text-[13px] font-medium text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Fingerprint className="size-4 text-primary" /> 模型指纹
-                  </span>
-                  <span className={cn("font-semibold", TONE_TEXT[claim.tone])}>{claim.text}</span>
-                </div>
-                <div className={cn("truncate font-mono text-base font-semibold", TONE_TEXT[claim.tone])}>{report.fingerprint.likely?.model ?? "未识别"}</div>
-                <div className="text-[13px] text-muted-foreground">
-                  {report.fingerprint.confidence !== null ? `置信度 ${pct(report.fingerprint.confidence)}` : "参考库未校准"}
-                </div>
-              </button>
-            )}
+          <div className="space-y-1.5">
+            <div className="text-[13px] text-muted-foreground">点击下方卡片切换各模块详细报告：</div>
+            <div className="grid gap-2.5 sm:grid-cols-3" role="tablist" aria-label="报告分项切换">
+              {report.fingerprint && claim && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "fingerprint"}
+                  onClick={() => setTab("fingerprint")}
+                  className={cn(
+                    "flex cursor-pointer flex-col gap-1 rounded-xl border p-3.5 text-left transition-all",
+                    tab === "fingerprint" ? "border-primary bg-primary/5 ring-2 ring-primary/25" : "bg-muted/20 hover:border-primary/40 hover:bg-muted/40",
+                  )}
+                >
+                  <div className="flex items-center justify-between text-[13px] font-medium text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Fingerprint className="size-4 text-primary" /> 模型指纹
+                    </span>
+                    <span className={cn("font-semibold", TONE_TEXT[claim.tone])}>{claim.text}</span>
+                  </div>
+                  <div className={cn("truncate font-mono text-base font-semibold", TONE_TEXT[claim.tone])}>{report.fingerprint.likely?.model ?? "未识别"}</div>
+                  <div className="flex items-center justify-between text-[13px] text-muted-foreground">
+                    <span>{report.fingerprint.confidence !== null ? `置信度 ${pct(report.fingerprint.confidence)}` : "参考库未校准"}</span>
+                    <span className={cn("font-medium", tab === "fingerprint" ? "text-primary" : "text-muted-foreground")}>{tab === "fingerprint" ? "当前展开" : "查看详情 →"}</span>
+                  </div>
+                </button>
+              )}
 
-            {report.composition && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "composition"}
-                onClick={() => setTab("composition")}
-                className={cn(
-                  "flex flex-col gap-1 rounded-xl border p-3.5 text-left transition-all",
-                  tab === "composition" ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-muted/20 hover:bg-muted/40",
-                )}
-              >
-                <div className="flex items-center justify-between text-[13px] font-medium text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Layers className="size-4 text-primary" /> 渠道成分
-                  </span>
-                  <span className={cn("font-semibold", TONE_TEXT[compTone])}>
-                    {report.composition.flags.length ? `${report.composition.flags.length} 项关键问题` : "无关键问题"}
-                  </span>
-                </div>
-                <div className={cn("text-2xl font-bold leading-tight tabular-nums", TONE_TEXT[compTone])}>
-                  {report.composition.score ?? "—"} <span className="text-sm font-normal text-muted-foreground">/ 100</span>
-                </div>
-                <div className="text-[13px] text-muted-foreground">
-                  通过 {report.composition.passed} · 警告 {report.composition.warned} · 失败 {report.composition.failed}
-                </div>
-              </button>
-            )}
+              {report.composition && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "composition"}
+                  onClick={() => setTab("composition")}
+                  className={cn(
+                    "flex cursor-pointer flex-col gap-1 rounded-xl border p-3.5 text-left transition-all",
+                    tab === "composition" ? "border-primary bg-primary/5 ring-2 ring-primary/25" : "bg-muted/20 hover:border-primary/40 hover:bg-muted/40",
+                  )}
+                >
+                  <div className="flex items-center justify-between text-[13px] font-medium text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Layers className="size-4 text-primary" /> 渠道成分{billSummary ? " · 含计费" : ""}
+                    </span>
+                    <span className={cn("font-semibold", TONE_TEXT[compTone])}>
+                      {report.composition.flags.length ? `${report.composition.flags.length} 项关键问题` : "无关键问题"}
+                    </span>
+                  </div>
+                  <div className={cn("text-2xl font-bold leading-tight tabular-nums", TONE_TEXT[compTone])}>
+                    {report.composition.score ?? "—"} <span className="text-sm font-normal text-muted-foreground">/ 100</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[13px] text-muted-foreground">
+                    <span>
+                      通过 {report.composition.passed} · 警告 {report.composition.warned} · 失败 {report.composition.failed}
+                    </span>
+                    <span className={cn("font-medium", tab === "composition" ? "text-primary" : "text-muted-foreground")}>{tab === "composition" ? "当前展开" : "查看详情 →"}</span>
+                  </div>
+                </button>
+              )}
 
-            {report.degradation && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "degradation"}
-                onClick={() => setTab("degradation")}
-                className={cn(
-                  "flex flex-col gap-1 rounded-xl border p-3.5 text-left transition-all",
-                  tab === "degradation" ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-muted/20 hover:bg-muted/40",
-                )}
-              >
-                <div className="flex items-center justify-between text-[13px] font-medium text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Brain className="size-4 text-primary" /> 降智与动画
-                  </span>
-                  <span className={cn("font-semibold", TONE_TEXT[dgTone])}>{VERDICT_LABEL[report.degradation.verdict].text}</span>
-                </div>
-                <div className={cn("text-2xl font-bold leading-tight tabular-nums", TONE_TEXT[dgTone])}>
-                  {report.degradation.score ?? "—"} <span className="text-sm font-normal text-muted-foreground">/ 100</span>
-                </div>
-                <div className="text-[13px] text-muted-foreground">
-                  通过 {report.degradation.passed}/{report.degradation.passed + report.degradation.failed} · 首字 {ms(report.degradation.stats.avgTtftMs)}
-                </div>
-              </button>
-            )}
+              {report.degradation && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "degradation"}
+                  onClick={() => setTab("degradation")}
+                  className={cn(
+                    "flex cursor-pointer flex-col gap-1 rounded-xl border p-3.5 text-left transition-all",
+                    tab === "degradation" ? "border-primary bg-primary/5 ring-2 ring-primary/25" : "bg-muted/20 hover:border-primary/40 hover:bg-muted/40",
+                  )}
+                >
+                  <div className="flex items-center justify-between text-[13px] font-medium text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Brain className="size-4 text-primary" /> 降智与动画
+                    </span>
+                    <span className={cn("font-semibold", TONE_TEXT[dgTone])}>{VERDICT_LABEL[report.degradation.verdict].text}</span>
+                  </div>
+                  <div className={cn("text-2xl font-bold leading-tight tabular-nums", TONE_TEXT[dgTone])}>
+                    {report.degradation.score ?? "—"} <span className="text-sm font-normal text-muted-foreground">/ 100</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[13px] text-muted-foreground">
+                    <span>
+                      通过 {report.degradation.passed}/{report.degradation.passed + report.degradation.failed} · 首字 {ms(report.degradation.stats.avgTtftMs)}
+                    </span>
+                    <span className={cn("font-medium", tab === "degradation" ? "text-primary" : "text-muted-foreground")}>{tab === "degradation" ? "当前展开" : "查看详情 →"}</span>
+                  </div>
+                </button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
