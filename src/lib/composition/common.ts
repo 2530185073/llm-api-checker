@@ -1,7 +1,7 @@
 import { runTokenizerProbe } from "../checker/tokenizer";
 import type { CallResult } from "../checker/types";
 import { fail, info, ok, skip, warn } from "./engine";
-import { TOKENIZER_CLASS, compatFacts } from "./facts";
+import { TOKENIZER_CLASS, claudeFacts, compatFacts } from "./facts";
 import type { Ctx } from "./http";
 import { ask, failText, type Answer } from "./talk";
 import type { Outcome, PrecisionEvidence } from "./types";
@@ -98,7 +98,10 @@ export async function hiddenPromptCase(c: Ctx): Promise<Outcome> {
 export async function consistencyCase(c: Ctx, idShape: (id: string | null) => string): Promise<Outcome> {
   const prompt = `Write the seven English weekday names in order, each followed by the word blue, then the twelve month names in order, each followed by green. ${c.salt("c")}`;
   const as: Answer[] = [];
-  for (let i = 0; i < 5; i++) as.push(await ask(c, { prompt, maxTokens: 300, extra: c.vendor === "glm" ? { do_sample: false, temperature: 0 } : c.vendor === "kimi" ? {} : { temperature: 0 } }));
+  // Claude 新一代型号只接受默认采样参数（temperature=0 官方 400），只对旧代际传 temperature=0
+  const claudeGreedy = c.vendor !== "claude" || claudeFacts(c.model).samplingRule === "legacy";
+  const extra = c.vendor === "glm" ? { do_sample: false, temperature: 0 } : c.vendor === "kimi" || !claudeGreedy ? {} : { temperature: 0 };
+  for (let i = 0; i < 5; i++) as.push(await ask(c, { prompt, maxTokens: 300, extra }));
   const good = as.filter((a) => a.ok);
   if (good.length < 3) return fail(`成功请求不足 3 次（${failText(as.find((a) => !a.ok)!)}）`);
   const shapes = new Set(good.map((a) => idShape(a.id)));
