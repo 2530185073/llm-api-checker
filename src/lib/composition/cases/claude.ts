@@ -1,4 +1,5 @@
 import { normalizeModelId } from "../../checker/model-id";
+import { BILLING_SPECS } from "../billing/cases";
 import { consistencyCase, contextLadderCase, memoryCase, threeNeedleCase, ttftCase, tpsCase, unicodeCase } from "../common";
 import { defineCases, fail, info, ok, skip, warn } from "../engine";
 import { claudeFacts, claudeKey } from "../facts";
@@ -1061,6 +1062,7 @@ export const CLAUDE_CASES = defineCases("claude", [
     },
   ],
   ["three_needle", "压力（可选）", "长上下文三针检索（~60k tokens）", 2, ["optional"], "约 60k tokens 的观测手册填充文本，在开头 / 中间 / 结尾各埋一个望远镜昵称，要求按序找出；还要求 usage.input_tokens ≥ 40k。默认不勾选。", (c) => threeNeedleCase(c, 60_000)],
+  ...BILLING_SPECS,
 ]);
 
 export const claudeLadder = (c: Ctx, ladderMax: number) => contextLadderCase(c, { tiers: [8000, 32000, 64000, 128000], window: 1_000_000, ladderMax });
